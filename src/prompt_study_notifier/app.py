@@ -26,7 +26,7 @@ from prompt_study_notifier.schemas import (
     TemplateUpsert,
 )
 from prompt_study_notifier.settings import Settings
-from prompt_study_notifier.ui import render_dashboard
+from prompt_study_notifier.ui import render_dashboard, render_templates_page
 
 
 class SchedulerRuntime:
@@ -49,11 +49,11 @@ class SchedulerRuntime:
         except asyncio.CancelledError:
             pass
 
-    async def enqueue_now(self, schedule_id: int) -> None:
+    async def enqueue_now(self, schedule_id: int, *, run_source: str = "manual") -> None:
         if schedule_id in self._running_schedule_ids:
             return
         self._running_schedule_ids.add(schedule_id)
-        asyncio.create_task(self._run_schedule(schedule_id))
+        asyncio.create_task(self._run_schedule(schedule_id, run_source=run_source))
 
     async def _loop(self) -> None:
         while True:
@@ -62,13 +62,13 @@ class SchedulerRuntime:
                 if schedule.id in self._running_schedule_ids:
                     continue
                 self._running_schedule_ids.add(schedule.id)
-                asyncio.create_task(self._run_schedule(schedule.id))
+                asyncio.create_task(self._run_schedule(schedule.id, run_source="scheduled"))
             await asyncio.sleep(self.poll_seconds)
 
-    async def _run_schedule(self, schedule_id: int) -> None:
+    async def _run_schedule(self, schedule_id: int, *, run_source: str) -> None:
         try:
             session = await asyncio.to_thread(self.service.generate_for_schedule, schedule_id)
-            event = self.service.build_live_event(session)
+            event = self.service.build_live_event(session, run_source=run_source)
             await self.broker.broadcast_json(event.model_dump(mode="json"))
         finally:
             self._running_schedule_ids.discard(schedule_id)
@@ -124,6 +124,21 @@ def create_app(settings: Settings) -> FastAPI:
             )
         )
 
+    @app.get("/templates", response_class=HTMLResponse)
+    async def templates_page() -> str:
+        return render_templates_page(
+            SettingsRecord(
+                model=settings.model,
+                active_model=db.get_active_model(settings.model),
+                available_models=available_models,
+                retention_limit=settings.retention_limit,
+                scheduler_poll_seconds=settings.scheduler_poll_seconds,
+                host=settings.host,
+                port=settings.port,
+            ),
+            db.list_templates(),
+        )
+
     @app.get("/api/settings", response_model=SettingsRecord)
     async def get_settings() -> SettingsRecord:
         return SettingsRecord(
@@ -168,6 +183,16 @@ def create_app(settings: Settings) -> FastAPI:
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @app.delete("/api/templates/{template_id}", response_model=RunNowResponse)
+    async def delete_template(template_id: int) -> RunNowResponse:
+        try:
+            db.delete_template(template_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return RunNowResponse(status="deleted")
+
     @app.post("/api/templates/preview", response_model=PromptPreviewResponse)
     async def preview_template(payload: PromptPreviewRequest) -> PromptPreviewResponse:
         resolved_prompt, variable_names = generation_service.preview_prompt(
@@ -186,15 +211,29 @@ def create_app(settings: Settings) -> FastAPI:
             db.get_template(payload.template_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        return db.create_schedule(payload)
+        try:
+            return db.create_schedule(payload)
+        except (ValueError, KeyError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.put("/api/schedules/{schedule_id}", response_model=ScheduleRecord)
     async def update_schedule(schedule_id: int, payload: ScheduleUpsert) -> ScheduleRecord:
         try:
             db.get_template(payload.template_id)
-            return db.update_schedule(schedule_id, payload)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        try:
+            return db.update_schedule(schedule_id, payload)
+        except (ValueError, KeyError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.delete("/api/schedules/{schedule_id}", response_model=RunNowResponse)
+    async def delete_schedule(schedule_id: int) -> RunNowResponse:
+        try:
+            db.delete_schedule(schedule_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return RunNowResponse(status="deleted")
 
     @app.post("/api/schedules/{schedule_id}/run-now", response_model=RunNowResponse)
     async def run_schedule_now(schedule_id: int) -> RunNowResponse:
@@ -202,7 +241,7 @@ def create_app(settings: Settings) -> FastAPI:
             db.get_schedule(schedule_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        await runtime.enqueue_now(schedule_id)
+        await runtime.enqueue_now(schedule_id, run_source="manual")
         return RunNowResponse(status="queued")
 
     @app.get("/api/sessions", response_model=list[SessionSummary])

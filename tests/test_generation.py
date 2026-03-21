@@ -82,3 +82,10 @@ def test_generate_for_schedule_uses_active_model_setting(tmp_path: Path) -> None
     db.set_app_setting("active_model", "gpt-5.4-mini")
     session = service.generate_for_schedule(schedule_id)
     assert session.model_name == "gpt-5.4-mini"
+
+
+def test_build_live_event_marks_manual_runs(tmp_path: Path) -> None:
+    _, service, schedule_id = _build_service(tmp_path)
+    session = service.generate_for_schedule(schedule_id)
+    event = service.build_live_event(session, run_source="manual")
+    assert event.run_source == "manual"

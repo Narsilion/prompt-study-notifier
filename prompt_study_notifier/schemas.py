@@ -115,6 +115,7 @@ class LiveEvent(BaseModel):
     type: str
     session: SessionRecord
     schedule: ScheduleRecord | None = None
+    run_source: str = "scheduled"
 
 
 class BrowserNotificationPayload(BaseModel):

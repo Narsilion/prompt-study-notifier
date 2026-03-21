@@ -291,6 +291,24 @@ class Database:
                 raise KeyError(f"Template not found: {template_id}")
             return self._hydrate_template(connection, row)
 
+    def delete_template(self, template_id: int) -> None:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT id FROM prompt_templates WHERE id = ?",
+                (template_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"Template not found: {template_id}")
+            dependent_schedule = connection.execute(
+                "SELECT id FROM schedules WHERE template_id = ? LIMIT 1",
+                (template_id,),
+            ).fetchone()
+            if dependent_schedule is not None:
+                raise ValueError("Template is still used by one or more schedules.")
+            connection.execute("DELETE FROM generated_sessions WHERE template_id = ?", (template_id,))
+            connection.execute("DELETE FROM template_variables WHERE template_id = ?", (template_id,))
+            connection.execute("DELETE FROM prompt_templates WHERE id = ?", (template_id,))
+
     def _hydrate_template(self, connection: sqlite3.Connection, row: sqlite3.Row) -> TemplateRecord:
         variable_rows = connection.execute(
             "SELECT name, label, description, example, required FROM template_variables WHERE template_id = ? ORDER BY id",
@@ -401,6 +419,17 @@ class Database:
             if row is None:
                 raise KeyError(f"Schedule not found: {schedule_id}")
             return self._hydrate_schedule(row)
+
+    def delete_schedule(self, schedule_id: int) -> None:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT id FROM schedules WHERE id = ?",
+                (schedule_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"Schedule not found: {schedule_id}")
+            connection.execute("DELETE FROM generated_sessions WHERE schedule_id = ?", (schedule_id,))
+            connection.execute("DELETE FROM schedules WHERE id = ?", (schedule_id,))
 
     def _hydrate_schedule(self, row: sqlite3.Row) -> ScheduleRecord:
         return ScheduleRecord.model_validate(

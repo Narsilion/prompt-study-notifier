@@ -70,6 +70,6 @@ class GenerationService:
         self.db.prune_sessions(limit=self.retention_limit)
         return self.db.get_session(session.id)
 
-    def build_live_event(self, session: SessionRecord) -> LiveEvent:
+    def build_live_event(self, session: SessionRecord, *, run_source: str = "scheduled") -> LiveEvent:
         schedule = self.db.get_schedule(session.schedule_id)
-        return LiveEvent(type="session.created", session=session, schedule=schedule)
+        return LiveEvent(type="session.created", session=session, schedule=schedule, run_source=run_source)

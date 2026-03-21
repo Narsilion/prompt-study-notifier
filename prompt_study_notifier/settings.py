@@ -17,8 +17,15 @@ class Settings:
     scheduler_poll_seconds: int
 
 
+def resolve_project_root() -> Path:
+    cwd = Path.cwd().resolve()
+    if (cwd / "pyproject.toml").exists() and ((cwd / "prompt_study_notifier").exists() or (cwd / "src" / "prompt_study_notifier").exists()):
+        return cwd
+    return Path(__file__).resolve().parents[2]
+
+
 def load_settings() -> Settings:
-    project_root = Path(__file__).resolve().parents[2]
+    project_root = resolve_project_root()
     db_path = Path(os.environ.get("PSN_DB_PATH", "./.data/prompt-study-notifier.db")).expanduser()
     if not db_path.is_absolute():
         db_path = project_root / db_path

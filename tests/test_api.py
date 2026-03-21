@@ -27,6 +27,15 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     dashboard = client.get("/")
     assert dashboard.status_code == 200
     assert "Prompt Study Notifier" in dashboard.text
+    assert "Latest Result" in dashboard.text
+    assert "Schedules" in dashboard.text
+    assert "Template Editor" not in dashboard.text
+    assert "Existing Templates" not in dashboard.text
+
+    templates_page = client.get("/templates")
+    assert templates_page.status_code == 200
+    assert "Template Editor" in templates_page.text
+    assert "Existing Templates" in templates_page.text
 
     settings = client.get("/api/settings")
     assert settings.status_code == 200
@@ -132,3 +141,66 @@ def test_delete_single_session(tmp_path: Path) -> None:
 
         missing = client.get(f"/api/sessions/{session.id}")
         assert missing.status_code == 404
+
+
+def test_delete_schedule_and_template(tmp_path: Path) -> None:
+    app = create_app(build_settings(tmp_path))
+    with TestClient(app) as client:
+        template = client.post(
+            "/api/templates",
+            json={
+                "name": "Examples",
+                "description": "Example template",
+                "system_prompt": "You are a tutor.",
+                "user_prompt_template": "Teach {topic}",
+                "output_schema_version": "v1",
+                "is_active": True,
+                "variables": [{"name": "topic", "label": "Topic", "required": True}],
+            },
+        )
+        template_id = template.json()["id"]
+        schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "Hourly",
+                "template_id": template_id,
+                "variables": {"topic": "articles"},
+                "cron_expr": "*/30 * * * *",
+                "timezone": "UTC",
+                "is_active": True,
+                "notification_enabled": True,
+            },
+        )
+        schedule_id = schedule.json()["id"]
+
+        blocked = client.delete(f"/api/templates/{template_id}")
+        assert blocked.status_code == 409
+
+        deleted_schedule = client.delete(f"/api/schedules/{schedule_id}")
+        assert deleted_schedule.status_code == 200
+        assert deleted_schedule.json()["status"] == "deleted"
+
+        deleted_template = client.delete(f"/api/templates/{template_id}")
+        assert deleted_template.status_code == 200
+        assert deleted_template.json()["status"] == "deleted"
+
+
+def test_create_schedule_returns_400_for_invalid_timezone(tmp_path: Path) -> None:
+    app = create_app(build_settings(tmp_path))
+    client = TestClient(app)
+
+    template_id = client.get("/api/templates").json()[0]["id"]
+    response = client.post(
+        "/api/schedules",
+        json={
+            "name": "Broken",
+            "template_id": template_id,
+            "variables": {},
+            "cron_expr": "*/30 * * * *",
+            "timezone": "Bad/Timezone",
+            "is_active": True,
+            "notification_enabled": True,
+        },
+    )
+
+    assert response.status_code == 400
