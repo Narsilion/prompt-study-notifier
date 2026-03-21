@@ -101,6 +101,9 @@ def _shared_styles() -> str:
       .layout-dashboard {
         grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.75fr);
       }
+      .layout-dashboard.schedules-collapsed {
+        grid-template-columns: minmax(0, 1fr) 200px;
+      }
       .layout-templates {
         grid-template-columns: minmax(340px, 0.95fr) minmax(0, 1.05fr);
       }
@@ -445,7 +448,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
         </form>
       </section>
 
-      <section class="layout layout-dashboard">
+      <section class="layout layout-dashboard" id="dashboardLayout">
         <div class="column">
           <section class="panel">
             <h2>Latest Result</h2>
@@ -470,7 +473,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           </section>
         </div>
 
-        <div class="column">
+        <div class="column" id="schedulesColumn">
           <section class="panel" id="schedulesPanel">
             <div class="actions" style="justify-content:space-between; align-items:center; margin-bottom:14px;">
               <h2 style="margin:0;">Schedules</h2>
@@ -520,6 +523,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
       <script>
         const state = { settings, schedules: [], sessions: [], templates: [] };
         const latestResultEl = document.getElementById("latestResult");
+        const dashboardLayoutEl = document.getElementById("dashboardLayout");
         const historyListEl = document.getElementById("historyList");
         const historyPanelContentEl = document.getElementById("historyPanelContent");
         const schedulesListEl = document.getElementById("schedulesList");
@@ -626,6 +630,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           schedulesPanelContentEl.style.display = collapsed ? "none" : "";
           toggleSchedulesButton.textContent = collapsed ? "Expand" : "Collapse";
           toggleSchedulesButton.dataset.collapsed = collapsed ? "true" : "false";
+          dashboardLayoutEl.classList.toggle("schedules-collapsed", collapsed);
         }
 
         function resetScheduleForm() {
