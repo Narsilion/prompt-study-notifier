@@ -1,0 +1,57 @@
+# Prompt Study Notifier
+
+Local-first web application that generates study material from scheduled prompts and pushes updates into an open browser dashboard.
+
+## Features
+
+- reusable prompt templates with variable substitution
+- schedules stored in SQLite
+- OpenAI-backed generation with strict JSON validation
+- recent session history
+- live dashboard updates over WebSocket
+- browser notifications for new content when permission is granted
+
+## Requirements
+
+- Python 3.11+
+- `OPENAI_API_KEY`
+
+## Setup
+
+```bash
+cd /Users/darkcreation/Documents/git_repos/prompt-study-notifier
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+export OPENAI_API_KEY="your_api_key_here"
+```
+
+In `zsh`, quote the extras spec:
+
+```bash
+python -m pip install -e '.[dev]'
+```
+
+## Run
+
+```bash
+prompt-study-notifier
+```
+
+Default URL: `http://127.0.0.1:8765`
+
+## Environment
+
+- `OPENAI_API_KEY` required for real generation
+- `PSN_MODEL` default `gpt-5`
+- `PSN_HOST` default `127.0.0.1`
+- `PSN_PORT` default `8765`
+- `PSN_DB_PATH` default `./.data/prompt-study-notifier.db`
+- `PSN_RETENTION_LIMIT` default `50`
+- `PSN_SCHEDULER_POLL_SECONDS` default `15`
+
+## Tests
+
+```bash
+pytest
+```

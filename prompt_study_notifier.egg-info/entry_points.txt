@@ -1,0 +1,2 @@
+[console_scripts]
+prompt-study-notifier = prompt_study_notifier.main:main
