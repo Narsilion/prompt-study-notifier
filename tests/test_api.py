@@ -29,6 +29,9 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     assert "Prompt Study Notifier" in dashboard.text
     assert "Latest Result" in dashboard.text
     assert "Schedules" in dashboard.text
+    assert "Pronounce term" in dashboard.text
+    assert "Pronounce example" in dashboard.text
+    assert "speechSynthesis" in dashboard.text
     assert "Template Editor" not in dashboard.text
     assert "Existing Templates" not in dashboard.text
 
@@ -40,6 +43,7 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     settings = client.get("/api/settings")
     assert settings.status_code == 200
     assert settings.json()["active_model"] == "gpt-5"
+    assert "gpt-5.4-mini" in settings.json()["available_models"]
 
     updated_settings = client.put("/api/settings", json={"active_model": "gpt-5.4-mini"})
     assert updated_settings.status_code == 200

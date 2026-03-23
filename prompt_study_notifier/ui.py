@@ -141,8 +141,32 @@ def _shared_styles() -> str:
         background: rgba(255,255,255,0.68);
         border: 1px solid var(--line);
       }
+      .card-header,
+      .inline-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
       .card h3 { margin: 0 0 8px; font-size: 28px; }
       .card p { margin: 6px 0; line-height: 1.55; }
+      .inline-row p {
+        margin: 0;
+        flex: 1;
+      }
+      .card-meta { margin-top: 10px; }
+      .pronounce-button {
+        padding: 6px 10px;
+        background: rgba(24,34,47,0.08);
+        color: var(--ink);
+        flex-shrink: 0;
+        font-size: 16px;
+        line-height: 1;
+      }
+      .pronounce-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
       .muted { color: var(--muted); }
       .list { display: grid; gap: 10px; }
       .list-item {
@@ -267,6 +291,8 @@ def _shared_styles() -> str:
         .layout-templates { grid-template-columns: 1fr; }
         .two-up { grid-template-columns: 1fr; }
         .nav { flex-direction: column; align-items: stretch; }
+        .card-header,
+        .inline-row { flex-direction: column; }
       }
     """
 
@@ -310,6 +336,10 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
             title: "Variable Definitions",
             body: "Describe the variables the template can use. Enter a JSON array of objects, for example items with name, label, and example fields. These definitions help you remember which values to supply later in a schedule.",
           }},
+          scheduleActive: {{
+            title: "Active",
+            body: "Active controls whether the scheduler is allowed to run this schedule automatically. When it is off, the schedule stays saved but no automatic runs are triggered until you turn it back on or use Run Now manually.",
+          }},
         }};
       </script>
       <script>
@@ -330,7 +360,7 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
       }}
 
       function validateCronExpression(value) {{
-        const normalized = String(value ?? "").trim().replaceAll(/\s+/g, " ");
+        const normalized = String(value ?? "").trim().replaceAll(/\\s+/g, " ");
         if (!normalized) {{
           return "Cron Expression is required.";
         }}
@@ -381,6 +411,144 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
         if (typeof dialog.showModal === "function") {{
           dialog.showModal();
         }}
+      }}
+
+      function speechSupported() {{
+        return "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+      }}
+
+      function updatePronounceButtons(root) {{
+        if (!root) {{
+          return;
+        }}
+        const supported = speechSupported();
+        root.querySelectorAll("[data-pronounce-text]").forEach((button) => {{
+          const text = String(button.dataset.pronounceText || "").trim();
+          button.disabled = !supported || !text;
+          if (!supported) {{
+            button.title = "Pronunciation is not supported in this browser.";
+          }} else if (!text) {{
+            button.title = "Nothing to pronounce.";
+          }} else {{
+            button.title = "";
+          }}
+        }});
+      }}
+
+      function getSpeechLocales(targetLanguage) {{
+        const languageKey = String(targetLanguage || "").trim().toLowerCase();
+        const localeMap = {{
+          "serbian": ["sr-RS", "sr-Latn-RS", "sr-Cyrl-RS", "sr-Latn", "sr-Cyrl", "sr"],
+          "srpski": ["sr-RS", "sr-Latn-RS", "sr-Cyrl-RS", "sr-Latn", "sr-Cyrl", "sr"],
+          "spanish": ["es-ES", "es"],
+          "german": ["de-DE", "de"],
+          "french": ["fr-FR", "fr"],
+          "italian": ["it-IT", "it"],
+          "portuguese": ["pt-PT", "pt-BR", "pt"],
+          "russian": ["ru-RU", "ru"],
+          "chinese": ["zh-CN", "zh"],
+          "japanese": ["ja-JP", "ja"],
+          "korean": ["ko-KR", "ko"],
+          "arabic": ["ar-SA", "ar"],
+          "hindi": ["hi-IN", "hi"],
+          "turkish": ["tr-TR", "tr"],
+          "dutch": ["nl-NL", "nl"],
+          "swedish": ["sv-SE", "sv"],
+          "norwegian": ["nb-NO", "no"],
+          "danish": ["da-DK", "da"],
+          "finnish": ["fi-FI", "fi"],
+          "polish": ["pl-PL", "pl"],
+          "czech": ["cs-CZ", "cs"],
+          "hungarian": ["hu-HU", "hu"],
+          "greek": ["el-GR", "el"],
+          "hebrew": ["he-IL", "he"],
+          "thai": ["th-TH", "th"],
+          "vietnamese": ["vi-VN", "vi"],
+          "indonesian": ["id-ID", "id"],
+          "malay": ["ms-MY", "ms"],
+          "filipino": ["fil-PH", "fil"],
+          "swahili": ["sw-KE", "sw"],
+          "amharic": ["am-ET", "am"],
+          "zulu": ["zu-ZA", "zu"],
+          "xhosa": ["xh-ZA", "xh"],
+          "afrikaans": ["af-ZA", "af"],
+          "hausa": ["ha-NG", "ha"],
+          "yoruba": ["yo-NG", "yo"],
+          "igbo": ["ig-NG", "ig"],
+          "english": ["en-US", "en-GB", "en"],
+        }};
+        return localeMap[languageKey] || [];
+      }}
+
+      function normalizeLocaleTag(value) {{
+        return String(value || "")
+          .trim()
+          .replaceAll("_", "-")
+          .toLowerCase();
+      }}
+
+      function localePrefix(value) {{
+        return normalizeLocaleTag(value).split("-")[0];
+      }}
+
+      function localeMatches(preferredLocale, actualLocale) {{
+        const preferred = normalizeLocaleTag(preferredLocale);
+        const actual = normalizeLocaleTag(actualLocale);
+        if (!preferred || !actual) {{
+          return false;
+        }}
+        return (
+          actual === preferred
+          || actual.startsWith(`${{preferred}}-`)
+          || preferred.startsWith(`${{actual}}-`)
+          || localePrefix(preferred) === localePrefix(actual)
+        );
+      }}
+
+      function selectSpeechVoice(preferredLocales) {{
+        if (!Array.isArray(preferredLocales) || !preferredLocales.length || !speechSupported()) {{
+          return null;
+        }}
+        const voices = window.speechSynthesis.getVoices();
+        if (!voices.length) {{
+          return null;
+        }}
+        for (const locale of preferredLocales) {{
+          const exactVoice = voices.find((voice) => localeMatches(locale, voice.lang));
+          if (exactVoice) {{
+            return exactVoice;
+          }}
+        }}
+        if (preferredLocales.some((locale) => localePrefix(locale) === "sr")) {{
+          return voices.find((voice) => ["hr", "bs"].includes(localePrefix(voice.lang))) || null;
+        }}
+        return null;
+      }}
+
+      function speakFromButton(button) {{
+        if (!button || button.disabled) {{
+          return;
+        }}
+        const text = String(button.dataset.pronounceText || "").trim();
+        if (!text || !speechSupported()) {{
+          return;
+        }}
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        const preferredLocales = String(button.dataset.lang || "")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+        if (preferredLocales.length) {{
+          utterance.lang = preferredLocales[0];
+          const preferredVoice = selectSpeechVoice(preferredLocales);
+          if (preferredVoice) {{
+            utterance.voice = preferredVoice;
+            utterance.lang = preferredVoice.lang;
+          }}
+        }}
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
       }}
       </script>
 {body}
@@ -442,8 +610,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           <span class="chip" id="runtimeInfo"></span>
         </div>
         <form id="modelForm" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <input id="modelInput" name="active_model" list="modelOptions" placeholder="Model ID">
-          <datalist id="modelOptions"></datalist>
+          <select id="modelInput" name="active_model"></select>
           <button type="submit">Save Model</button>
         </form>
       </section>
@@ -480,40 +647,49 @@ def render_dashboard(settings: SettingsRecord) -> str:
               <button id="toggleSchedulesButton" class="secondary" type="button">Collapse</button>
             </div>
             <div id="schedulesPanelContent">
-              <form id="scheduleForm">
-                <input type="hidden" name="schedule_id">
-                <label class="field">
-                  <span class="field-label">Schedule Name</span>
-                  <input name="name" placeholder="Schedule name" required>
-                </label>
-                <label class="field">
-                  <span class="field-label">Template</span>
-                  <select name="template_id" required></select>
-                </label>
-                <label class="field">
-                  <span class="field-label">Cron Expression</span>
-                  <input name="cron_expr" placeholder="Cron expression, e.g. */30 * * * *" required>
-                </label>
-                <label class="field">
-                  <span class="field-label">Timezone</span>
-                  <input name="timezone" value="Europe/Belgrade" required>
-                </label>
-                <label class="field">
-                  <span class="field-heading">
-                    <span class="field-label">Variables</span>
-                    <button class="help-link" type="button" onclick="showHelp('scheduleVariables')">How to use this</button>
-                  </span>
-                  <textarea name="variables" placeholder='Variables JSON, e.g. {"target_language":"Spanish","topic":"restaurant conversations","focus_area":"polite requests","difficulty":"A2"}'></textarea>
-                </label>
-                <div class="two-up">
-                  <label><input type="checkbox" name="is_active" checked> Active</label>
-                  <label><input type="checkbox" name="notification_enabled" checked> Browser notification</label>
-                </div>
-                <div class="actions">
-                  <button id="saveScheduleButton" type="submit">Save Schedule</button>
-                  <button id="cancelScheduleEditButton" class="secondary" type="button">Cancel Edit</button>
-                </div>
-              </form>
+              <div class="actions" style="justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <h2 style="margin:0;">Schedule Editor</h2>
+                <button id="toggleScheduleEditorButton" class="secondary" type="button">Collapse</button>
+              </div>
+              <div id="scheduleEditorContent">
+                <form id="scheduleForm">
+                  <input type="hidden" name="schedule_id">
+                  <label class="field">
+                    <span class="field-label">Schedule Name</span>
+                    <input name="name" placeholder="Schedule name" required>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Template</span>
+                    <select name="template_id" required></select>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Cron Expression</span>
+                    <input name="cron_expr" placeholder="Cron expression, e.g. */30 * * * *" required>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Timezone</span>
+                    <input name="timezone" value="Europe/Belgrade" required>
+                  </label>
+                  <label class="field">
+                    <span class="field-heading">
+                      <span class="field-label">Variables</span>
+                      <button class="help-link" type="button" onclick="showHelp('scheduleVariables')">How to use this</button>
+                    </span>
+                    <textarea name="variables" placeholder='Variables JSON, e.g. {"target_language":"Spanish","topic":"restaurant conversations","focus_area":"polite requests","difficulty":"A2"}'></textarea>
+                  </label>
+                  <div class="two-up">
+                    <label>
+                      <input type="checkbox" name="is_active" checked> Active
+                      <button class="help-link" type="button" onclick="showHelp('scheduleActive')">What is this?</button>
+                    </label>
+                    <label><input type="checkbox" name="notification_enabled" checked> Browser notification</label>
+                  </div>
+                  <div class="actions">
+                    <button id="saveScheduleButton" type="submit">Save Schedule</button>
+                    <button id="cancelScheduleEditButton" class="secondary" type="button">Cancel Edit</button>
+                  </div>
+                </form>
+              </div>
               <div id="schedulesList" class="list" style="margin-top:16px;"></div>
             </div>
           </section>
@@ -528,24 +704,25 @@ def render_dashboard(settings: SettingsRecord) -> str:
         const historyPanelContentEl = document.getElementById("historyPanelContent");
         const schedulesListEl = document.getElementById("schedulesList");
         const schedulesPanelContentEl = document.getElementById("schedulesPanelContent");
+        const scheduleEditorContentEl = document.getElementById("scheduleEditorContent");
         const scheduleForm = document.getElementById("scheduleForm");
         const connectionStatus = document.getElementById("connectionStatus");
         const runtimeInfo = document.getElementById("runtimeInfo");
         const modelForm = document.getElementById("modelForm");
         const modelInput = document.getElementById("modelInput");
-        const modelOptions = document.getElementById("modelOptions");
         const saveScheduleButton = document.getElementById("saveScheduleButton");
         const cancelScheduleEditButton = document.getElementById("cancelScheduleEditButton");
         const toggleHistoryButton = document.getElementById("toggleHistoryButton");
         const toggleSchedulesButton = document.getElementById("toggleSchedulesButton");
+        const toggleScheduleEditorButton = document.getElementById("toggleScheduleEditorButton");
         const clearHistoryButton = document.getElementById("clearHistoryButton");
 
         function renderRuntimeInfo() {
           runtimeInfo.textContent = `${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
-          modelInput.value = state.settings.active_model;
-          modelOptions.innerHTML = (state.settings.available_models || []).map((model) => `
-            <option value="${escapeHtml(model)}"></option>
+          modelInput.innerHTML = (state.settings.available_models || []).map((model) => `
+            <option value="${escapeHtml(model)}">${escapeHtml(model)}</option>
           `).join("");
+          modelInput.value = state.settings.active_model;
         }
 
         function renderLatest() {
@@ -562,24 +739,36 @@ def render_dashboard(settings: SettingsRecord) -> str:
             return;
           }
           const payload = latest.render_payload;
+          const targetLanguage = latest.prompt_snapshot?.variables?.target_language || "";
+          const speechLocales = getSpeechLocales(targetLanguage).join(",");
           const cards = payload.items.map((item) => `
             <article class="card">
-              <h3>${escapeHtml(item.term)}</h3>
+              <div class="card-header">
+                <h3>${escapeHtml(item.term)}</h3>
+                <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.term || "")}" data-lang="${escapeHtml(speechLocales)}" title="Pronounce term">
+                  🔊
+                </button>
+              </div>
               <p><strong>Translation:</strong> ${escapeHtml(item.translation || "-")}</p>
               <p><strong>Explanation:</strong> ${escapeHtml(item.explanation || "-")}</p>
-              <p><strong>Example:</strong> ${escapeHtml(item.example_source || "-")}</p>
+              <div class="inline-row">
+                <p><strong>Example:</strong> ${escapeHtml(item.example_source || "-")}</p>
+                <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.example_source || "")}" data-lang="${escapeHtml(speechLocales)}" title="Pronounce example">
+                  🔊
+                </button>
+              </div>
               <p><strong>Example translation:</strong> ${escapeHtml(item.example_target || "-")}</p>
               <p><strong>Notes:</strong> ${escapeHtml(item.notes || "-")}</p>
-              <p class="muted">${escapeHtml((item.tags || []).join(", "))}</p>
+              <p class="muted card-meta">${escapeHtml((item.tags || []).join(", "))}</p>
             </article>
           `).join("");
           latestResultEl.innerHTML = `
-            <div class="chip">${escapeHtml(payload.topic)}</div>
             <h3 class="result-title">${escapeHtml(payload.title)}</h3>
             <p class="summary">${escapeHtml(payload.summary)}</p>
             ${payload.focus_hint ? `<p><strong>Focus:</strong> ${escapeHtml(payload.focus_hint)}</p>` : ""}
             <div class="cards">${cards}</div>
           `;
+          updatePronounceButtons(latestResultEl);
         }
 
         function renderHistory() {
@@ -601,6 +790,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
         }
 
         function renderSchedules() {
+          console.log("Rendering schedules:", state.schedules);
           const select = scheduleForm.elements.template_id;
           select.innerHTML = state.templates.map((template) => `
             <option value="${template.id}">${escapeHtml(template.name)}</option>
@@ -633,6 +823,12 @@ def render_dashboard(settings: SettingsRecord) -> str:
           dashboardLayoutEl.classList.toggle("schedules-collapsed", collapsed);
         }
 
+        function setScheduleEditorCollapsed(collapsed) {
+          scheduleEditorContentEl.style.display = collapsed ? "none" : "";
+          toggleScheduleEditorButton.textContent = collapsed ? "Expand" : "Collapse";
+          toggleScheduleEditorButton.dataset.collapsed = collapsed ? "true" : "false";
+        }
+
         function resetScheduleForm() {
           scheduleForm.reset();
           scheduleForm.elements.schedule_id.value = "";
@@ -659,24 +855,41 @@ def render_dashboard(settings: SettingsRecord) -> str:
           saveScheduleButton.textContent = "Update Schedule";
           cancelScheduleEditButton.style.display = "";
           setSchedulesCollapsed(false);
+          setScheduleEditorCollapsed(false);
           scheduleForm.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
         async function loadAll() {
-          const [appSettings, templates, schedules, sessions] = await Promise.all([
-            fetchJson("/api/settings"),
-            fetchJson("/api/templates"),
-            fetchJson("/api/schedules"),
-            fetchJson("/api/sessions?limit=20"),
-          ]);
-          state.settings = appSettings;
-          state.templates = templates;
-          state.schedules = schedules;
-          state.sessions = await Promise.all(sessions.map((session) => fetchJson(`/api/sessions/${session.id}`)));
-          renderRuntimeInfo();
-          renderSchedules();
-          renderHistory();
-          renderLatest();
+          try {
+            console.log("Starting loadAll");
+            const [appSettings, templates, schedules, sessionSummaries] = await Promise.all([
+              fetchJson("/api/settings").catch((error) => { console.error("Failed to load settings:", error); return {}; }),
+              fetchJson("/api/templates").catch((error) => { console.error("Failed to load templates:", error); return []; }),
+              fetchJson("/api/schedules").catch((error) => { console.error("Failed to load schedules:", error); return []; }),
+              fetchJson("/api/sessions?limit=20").catch((error) => { console.error("Failed to load sessions:", error); return []; }),
+            ]);
+            console.log("Loaded data:", { settings: appSettings, templates: templates.length, schedules: schedules.length, sessions: sessionSummaries.length });
+            state.settings = appSettings;
+            state.templates = templates;
+            state.schedules = schedules;
+            // Fetch full session data, but handle errors gracefully
+            const sessionPromises = sessionSummaries.map((session) => 
+              fetchJson(`/api/sessions/${session.id}`).catch((error) => {
+                console.error(`Failed to load session ${session.id}:`, error);
+                return null; // Return null for failed sessions
+              })
+            );
+            const sessionResults = await Promise.all(sessionPromises);
+            state.sessions = sessionResults.filter((session) => session !== null);
+            console.log("Final state:", { schedules: state.schedules.length, sessions: state.sessions.length });
+            renderRuntimeInfo();
+            renderSchedules();
+            renderHistory();
+            renderLatest();
+          } catch (error) {
+            console.error("Load failed:", error);
+            latestResultEl.innerHTML = `<pre>Load failed: ${escapeHtml(error.message)}</pre>`;
+          }
         }
 
         modelForm.addEventListener("submit", async (event) => {
@@ -749,6 +962,11 @@ def render_dashboard(settings: SettingsRecord) -> str:
           setSchedulesCollapsed(!collapsed);
         });
 
+        toggleScheduleEditorButton.addEventListener("click", () => {
+          const collapsed = toggleScheduleEditorButton.dataset.collapsed === "true";
+          setScheduleEditorCollapsed(!collapsed);
+        });
+
         clearHistoryButton.addEventListener("click", async () => {
           if (!window.confirm("Delete all generated session history?")) {
             return;
@@ -757,6 +975,14 @@ def render_dashboard(settings: SettingsRecord) -> str:
           state.sessions = [];
           renderHistory();
           renderLatest();
+        });
+
+        latestResultEl.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-pronounce-text]");
+          if (!button) {
+            return;
+          }
+          speakFromButton(button);
         });
 
         schedulesListEl.addEventListener("click", async (event) => {
@@ -858,8 +1084,9 @@ def render_dashboard(settings: SettingsRecord) -> str:
         }
 
         renderRuntimeInfo();
-        setHistoryCollapsed(false);
+        setHistoryCollapsed(true);
         setSchedulesCollapsed(false);
+        setScheduleEditorCollapsed(true);
         resetScheduleForm();
         loadAll().then(connectLive).catch((error) => {
           connectionStatus.textContent = "Load failed";
