@@ -134,6 +134,12 @@ def _shared_styles() -> str:
         font-family: "Palatino", "Book Antiqua", serif;
       }
       .summary { margin: 0; color: var(--muted); font-size: 18px; line-height: 1.6; }
+      .result-meta {
+        margin: 6px 0 10px;
+        font-size: 13px;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
       .cards { display: grid; gap: 14px; margin-top: 16px; }
       .card {
         padding: 18px;
@@ -249,6 +255,35 @@ def _shared_styles() -> str:
         border-radius: 999px;
         background: rgba(24,34,47,0.08);
         font-size: 13px;
+      }
+      .run-progress {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .run-progress-label {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .run-progress-bar {
+        position: relative;
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(24,34,47,0.1);
+      }
+      .run-progress-bar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 38%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+        animation: run-progress-slide 1.1s ease-in-out infinite;
+      }
+      @keyframes run-progress-slide {
+        0% { transform: translateX(-115%); }
+        100% { transform: translateX(280%); }
       }
       .page-title {
         margin: 0;
@@ -386,6 +421,25 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
         }}
       }}
 
+      function formatGenerationDuration(value) {{
+        const seconds = Number(value);
+        if (!Number.isFinite(seconds) || seconds < 0) {{
+          return "";
+        }}
+        if (seconds < 1) {{
+          return `${{Math.round(seconds * 1000)}} ms`;
+        }}
+        if (seconds < 10) {{
+          return `${{seconds.toFixed(1)}} s`;
+        }}
+        if (seconds < 60) {{
+          return `${{Math.round(seconds)}} s`;
+        }}
+        const minutes = Math.floor(seconds / 60);
+        const remainder = Math.round(seconds % 60);
+        return `${{minutes}}m ${{remainder}}s`;
+      }}
+
       async function fetchJson(path, options) {{
         const response = await fetch(path, {{
           headers: {{ "Content-Type": "application/json" }},
@@ -440,8 +494,11 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
         const localeMap = {{
           "serbian": ["sr-RS", "sr-Latn-RS", "sr-Cyrl-RS", "sr-Latn", "sr-Cyrl", "sr"],
           "srpski": ["sr-RS", "sr-Latn-RS", "sr-Cyrl-RS", "sr-Latn", "sr-Cyrl", "sr"],
+          "deutsch": ["de-DE", "de"],
           "spanish": ["es-ES", "es"],
           "german": ["de-DE", "de"],
+          "alemán": ["de-DE", "de"],
+          "aleman": ["de-DE", "de"],
           "french": ["fr-FR", "fr"],
           "italian": ["it-IT", "it"],
           "portuguese": ["pt-PT", "pt-BR", "pt"],
@@ -478,6 +535,70 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
           "english": ["en-US", "en-GB", "en"],
         }};
         return localeMap[languageKey] || [];
+      }}
+
+      function detectTargetLanguage(session) {{
+        const variableLanguage = session?.prompt_snapshot?.variables?.target_language;
+        if (String(variableLanguage || "").trim()) {{
+          return String(variableLanguage).trim();
+        }}
+        const candidateTexts = [
+          session?.prompt_snapshot?.system_prompt,
+          session?.prompt_snapshot?.user_prompt_template,
+          session?.prompt_snapshot?.rendered_user_prompt,
+          session?.render_payload?.title,
+          session?.render_payload?.topic,
+        ];
+        const knownLanguages = [
+          "Serbian",
+          "German",
+          "Deutsch",
+          "Spanish",
+          "French",
+          "Italian",
+          "Portuguese",
+          "Russian",
+          "Chinese",
+          "Japanese",
+          "Korean",
+          "Arabic",
+          "Hindi",
+          "Turkish",
+          "Dutch",
+          "Swedish",
+          "Norwegian",
+          "Danish",
+          "Finnish",
+          "Polish",
+          "Czech",
+          "Hungarian",
+          "Greek",
+          "Hebrew",
+          "Thai",
+          "Vietnamese",
+          "Indonesian",
+          "Malay",
+          "Filipino",
+          "Swahili",
+          "Amharic",
+          "Zulu",
+          "Xhosa",
+          "Afrikaans",
+          "Hausa",
+          "Yoruba",
+          "Igbo",
+          "English",
+        ];
+        for (const text of candidateTexts) {{
+          const haystack = String(text || "");
+          for (const language of knownLanguages) {{
+            const pattern = new RegExp(`\\\\b${{language.replace(/[.*+?^${{}}()|[\\]\\\\]/g, "\\\\$&")}}\\\\b`, "i");
+            if (pattern.test(haystack)) {{
+              return language;
+            }}
+          }}
+        }}
+        return "";
       }}
 
       function normalizeLocaleTag(value) {{
@@ -597,8 +718,16 @@ def _escape_html(value: str) -> str:
     )
 
 
+def _model_options_markup(settings: SettingsRecord) -> str:
+    return "".join(
+        f'<option value="{_escape_html(model)}"{(" selected" if model == settings.active_model else "")}>{_escape_html(model)}</option>'
+        for model in settings.available_models
+    )
+
+
 def render_dashboard(settings: SettingsRecord) -> str:
     settings_json = json.dumps(settings.model_dump())
+    model_options_markup = _model_options_markup(settings)
     body = """
       <section class="hero">
         <div class="chip">Live Prompt Study Dashboard</div>
@@ -610,7 +739,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           <span class="chip" id="runtimeInfo"></span>
         </div>
         <form id="modelForm" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <select id="modelInput" name="active_model"></select>
+          <select id="modelInput" name="active_model">__MODEL_OPTIONS__</select>
           <button type="submit">Save Model</button>
         </form>
       </section>
@@ -697,7 +826,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
       </section>
 
       <script>
-        const state = { settings, schedules: [], sessions: [], templates: [] };
+        const state = { settings, schedules: [], sessions: [], templates: [], manualRunsInFlight: [] };
         const latestResultEl = document.getElementById("latestResult");
         const dashboardLayoutEl = document.getElementById("dashboardLayout");
         const historyListEl = document.getElementById("historyList");
@@ -716,6 +845,9 @@ def render_dashboard(settings: SettingsRecord) -> str:
         const toggleSchedulesButton = document.getElementById("toggleSchedulesButton");
         const toggleScheduleEditorButton = document.getElementById("toggleScheduleEditorButton");
         const clearHistoryButton = document.getElementById("clearHistoryButton");
+        let liveSocket = null;
+        let liveReconnectTimer = null;
+        let liveConnectTimeout = null;
 
         function renderRuntimeInfo() {
           runtimeInfo.textContent = `${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
@@ -739,7 +871,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
             return;
           }
           const payload = latest.render_payload;
-          const targetLanguage = latest.prompt_snapshot?.variables?.target_language || "";
+          const targetLanguage = detectTargetLanguage(latest);
           const speechLocales = getSpeechLocales(targetLanguage).join(",");
           const cards = payload.items.map((item) => `
             <article class="card">
@@ -764,6 +896,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           `).join("");
           latestResultEl.innerHTML = `
             <h3 class="result-title">${escapeHtml(payload.title)}</h3>
+            <p class="result-meta">${escapeHtml(formatDateTime(latest.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}${latest.generation_seconds != null ? ` | generated in ${escapeHtml(formatGenerationDuration(latest.generation_seconds))}` : ""}</p>
             <p class="summary">${escapeHtml(payload.summary)}</p>
             ${payload.focus_hint ? `<p><strong>Focus:</strong> ${escapeHtml(payload.focus_hint)}</p>` : ""}
             <div class="cards">${cards}</div>
@@ -804,10 +937,26 @@ def render_dashboard(settings: SettingsRecord) -> str:
                 <button class="secondary" type="button" data-edit-schedule-id="${schedule.id}">Edit</button>
                 <button class="secondary" type="button" data-toggle-schedule-id="${schedule.id}">${schedule.is_active ? "Pause" : "Resume"}</button>
                 <button class="secondary" type="button" data-delete-schedule-id="${schedule.id}">Delete</button>
-                <button class="secondary" type="button" data-run-now="${schedule.id}">Run Now</button>
+                <button class="secondary" type="button" data-run-now="${schedule.id}" ${state.manualRunsInFlight.includes(schedule.id) ? 'disabled aria-busy="true"' : ""}>${state.manualRunsInFlight.includes(schedule.id) ? "Running..." : "Run Now"}</button>
               </div>
+              ${state.manualRunsInFlight.includes(schedule.id) ? `
+                <div class="run-progress" aria-live="polite">
+                  <div class="run-progress-label">Generating study session...</div>
+                  <div class="run-progress-bar" role="progressbar" aria-label="Generating study session"></div>
+                </div>
+              ` : ""}
             </article>
           `).join("") || '<p class="muted">No schedules yet.</p>';
+        }
+
+        function setManualRunInFlight(scheduleId, inFlight) {
+          const active = new Set(state.manualRunsInFlight);
+          if (inFlight) {
+            active.add(scheduleId);
+          } else {
+            active.delete(scheduleId);
+          }
+          state.manualRunsInFlight = Array.from(active);
         }
 
         function setHistoryCollapsed(collapsed) {
@@ -863,13 +1012,15 @@ def render_dashboard(settings: SettingsRecord) -> str:
           try {
             console.log("Starting loadAll");
             const [appSettings, templates, schedules, sessionSummaries] = await Promise.all([
-              fetchJson("/api/settings").catch((error) => { console.error("Failed to load settings:", error); return {}; }),
+              fetchJson("/api/settings").catch((error) => { console.error("Failed to load settings:", error); return null; }),
               fetchJson("/api/templates").catch((error) => { console.error("Failed to load templates:", error); return []; }),
               fetchJson("/api/schedules").catch((error) => { console.error("Failed to load schedules:", error); return []; }),
               fetchJson("/api/sessions?limit=20").catch((error) => { console.error("Failed to load sessions:", error); return []; }),
             ]);
             console.log("Loaded data:", { settings: appSettings, templates: templates.length, schedules: schedules.length, sessions: sessionSummaries.length });
-            state.settings = appSettings;
+            if (appSettings && Array.isArray(appSettings.available_models) && appSettings.active_model) {
+              state.settings = appSettings;
+            }
             state.templates = templates;
             state.schedules = schedules;
             // Fetch full session data, but handle errors gracefully
@@ -1031,7 +1182,16 @@ def render_dashboard(settings: SettingsRecord) -> str:
           }
           const button = event.target.closest("[data-run-now]");
           if (!button) return;
-          await fetchJson(`/api/schedules/${button.dataset.runNow}/run-now`, { method: "POST" });
+          const scheduleId = Number(button.dataset.runNow);
+          setManualRunInFlight(scheduleId, true);
+          renderSchedules();
+          try {
+            await fetchJson(`/api/schedules/${scheduleId}/run-now`, { method: "POST" });
+          } catch (error) {
+            setManualRunInFlight(scheduleId, false);
+            renderSchedules();
+            throw error;
+          }
         });
 
         document.getElementById("enableNotificationsButton").addEventListener("click", async () => {
@@ -1057,18 +1217,51 @@ def render_dashboard(settings: SettingsRecord) -> str:
           };
         }
 
+        function scheduleLiveReconnect(delay = 1500) {
+          if (liveReconnectTimer !== null) {
+            return;
+          }
+          connectionStatus.textContent = "Reconnecting…";
+          liveReconnectTimer = window.setTimeout(() => {
+            liveReconnectTimer = null;
+            connectLive();
+          }, delay);
+        }
+
         function connectLive() {
+          if (liveSocket && (liveSocket.readyState === WebSocket.OPEN || liveSocket.readyState === WebSocket.CONNECTING)) {
+            return;
+          }
+          window.clearTimeout(liveConnectTimeout);
+          connectionStatus.textContent = "Connecting…";
           const protocol = window.location.protocol === "https:" ? "wss" : "ws";
           const socket = new WebSocket(`${protocol}://${window.location.host}/api/live`);
-          socket.onopen = () => { connectionStatus.textContent = "Live connected"; };
+          liveSocket = socket;
+          liveConnectTimeout = window.setTimeout(() => {
+            if (socket.readyState === WebSocket.CONNECTING) {
+              connectionStatus.textContent = "Live timeout";
+              socket.close();
+            }
+          }, 5000);
+          socket.onopen = () => {
+            window.clearTimeout(liveConnectTimeout);
+            connectionStatus.textContent = "Live connected";
+          };
+          socket.onerror = () => {
+            connectionStatus.textContent = "Live error";
+          };
           socket.onclose = () => {
-            connectionStatus.textContent = "Reconnecting…";
-            setTimeout(connectLive, 1500);
+            window.clearTimeout(liveConnectTimeout);
+            if (liveSocket === socket) {
+              liveSocket = null;
+            }
+            scheduleLiveReconnect();
           };
           socket.onmessage = (event) => {
             const payload = JSON.parse(event.data);
             if (payload.type === "session.created") {
               const session = payload.session;
+              setManualRunInFlight(payload.schedule.id, false);
               state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)].slice(0, 20);
               state.schedules = state.schedules.map((schedule) =>
                 schedule.id === payload.schedule.id ? payload.schedule : schedule
@@ -1094,7 +1287,12 @@ def render_dashboard(settings: SettingsRecord) -> str:
         });
       </script>
     """
-    return _shell("Prompt Study Notifier", "dashboard", body, settings_json=settings_json)
+    return _shell(
+        "Prompt Study Notifier",
+        "dashboard",
+        body.replace("__MODEL_OPTIONS__", model_options_markup),
+        settings_json=settings_json,
+    )
 
 
 def render_templates_page(settings: SettingsRecord, templates: list[TemplateRecord]) -> str:

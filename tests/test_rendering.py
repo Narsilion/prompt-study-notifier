@@ -17,3 +17,15 @@ def test_render_prompt_raises_for_missing_variable() -> None:
         assert "topic" in str(exc)
     else:
         raise AssertionError("Expected missing variable error")
+
+
+def test_render_prompt_uses_random_gender_when_missing(monkeypatch) -> None:
+    monkeypatch.setattr("prompt_study_notifier.rendering.random.choice", lambda choices: "feminine")
+    rendered = render_prompt("Use {gender} nouns", {})
+    assert rendered == "Use feminine nouns"
+
+
+def test_render_prompt_uses_random_gender_when_blank(monkeypatch) -> None:
+    monkeypatch.setattr("prompt_study_notifier.rendering.random.choice", lambda choices: "neuter")
+    rendered = render_prompt("Use {gender} nouns", {"gender": "  "})
+    assert rendered == "Use neuter nouns"

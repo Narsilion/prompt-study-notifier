@@ -89,6 +89,7 @@ class Database:
                     status TEXT NOT NULL,
                     error_text TEXT,
                     generated_at TEXT NOT NULL,
+                    generation_seconds REAL,
                     FOREIGN KEY(schedule_id) REFERENCES schedules(id),
                     FOREIGN KEY(template_id) REFERENCES prompt_templates(id)
                 );
@@ -102,6 +103,11 @@ class Database:
             connection.execute(
                 "INSERT OR IGNORE INTO app_settings(key, value) VALUES('schema_version', '1')"
             )
+            generated_session_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(generated_sessions)").fetchall()
+            }
+            if "generation_seconds" not in generated_session_columns:
+                connection.execute("ALTER TABLE generated_sessions ADD COLUMN generation_seconds REAL")
             connection.commit()
 
     def get_app_setting(self, key: str, default: str | None = None) -> str | None:
@@ -486,6 +492,7 @@ class Database:
         status: str,
         error_text: str | None,
         generated_at: datetime | None = None,
+        generation_seconds: float | None = None,
     ) -> SessionRecord:
         generated_time = generated_at or utc_now()
         with self.connection() as connection:
@@ -493,9 +500,9 @@ class Database:
                 """
                 INSERT INTO generated_sessions(
                     schedule_id, template_id, render_payload_json, model_name,
-                    prompt_snapshot_json, status, error_text, generated_at
+                    prompt_snapshot_json, status, error_text, generated_at, generation_seconds
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     schedule_id,
@@ -506,6 +513,7 @@ class Database:
                     status,
                     error_text,
                     generated_time.isoformat(),
+                    generation_seconds,
                 ),
             )
         session = self.get_session(int(cursor.lastrowid))
@@ -558,6 +566,7 @@ class Database:
             status=row["status"],
             error_text=row["error_text"],
             generated_at=row["generated_at"],
+            generation_seconds=row["generation_seconds"],
             )
 
     def prune_sessions(self, *, limit: int = 50) -> None:
@@ -594,3 +603,38 @@ class Database:
                 "DELETE FROM generated_sessions WHERE id = ?",
                 (session_id,),
             )
+
+    def list_sessions(self, *, limit: int = 20) -> list[SessionSummary]:
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, schedule_id, template_id, render_payload_json, status, error_text, generated_at
+                FROM generated_sessions
+                ORDER BY generated_at DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            summaries = []
+            for row in rows:
+                payload = None
+                title = None
+                topic = None
+                if row["render_payload_json"]:
+                    try:
+                        payload = StudyPayload.model_validate(json.loads(row["render_payload_json"]))
+                        title = payload.title
+                        topic = payload.topic
+                    except Exception:
+                        pass  # Ignore parsing errors
+                summaries.append(SessionSummary(
+                    id=row["id"],
+                    schedule_id=row["schedule_id"],
+                    template_id=row["template_id"],
+                    status=row["status"],
+                    generated_at=row["generated_at"],
+                    error_text=row["error_text"],
+                    title=title,
+                    topic=topic,
+                ))
+            return summaries

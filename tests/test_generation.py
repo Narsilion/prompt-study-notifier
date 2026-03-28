@@ -66,6 +66,8 @@ def test_generate_for_schedule_persists_successful_session(tmp_path: Path) -> No
     session = service.generate_for_schedule(schedule_id)
     assert session.status == "success"
     assert session.render_payload is not None
+    assert session.generation_seconds is not None
+    assert session.generation_seconds >= 0
     schedule = db.get_schedule(schedule_id)
     assert schedule.last_session_id == session.id
 
@@ -75,6 +77,7 @@ def test_generate_for_schedule_persists_failure(tmp_path: Path) -> None:
     session = service.generate_for_schedule(schedule_id)
     assert session.status == "failed"
     assert session.error_text == "invalid payload"
+    assert session.generation_seconds is not None
 
 
 def test_generate_for_schedule_uses_active_model_setting(tmp_path: Path) -> None:

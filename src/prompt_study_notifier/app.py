@@ -76,10 +76,10 @@ class SchedulerRuntime:
 
 def create_app(settings: Settings) -> FastAPI:
     available_models = [
-        "gpt-5.4-mini",
         "gpt-5-mini",
-        "gpt-5.4",
+        "gpt-5.4-mini",
         "gpt-5",
+        "gpt-5.4",
     ]
     if settings.model not in available_models:
         available_models.insert(0, settings.model)

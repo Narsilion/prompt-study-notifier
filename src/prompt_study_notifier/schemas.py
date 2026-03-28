@@ -97,6 +97,7 @@ class SessionRecord(BaseModel):
     status: str
     error_text: str | None = None
     generated_at: str
+    generation_seconds: float | None = None
     model_config = ConfigDict(from_attributes=True)
 
 

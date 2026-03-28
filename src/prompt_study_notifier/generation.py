@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from time import perf_counter
 
 from prompt_study_notifier.db import Database
 from prompt_study_notifier.openai_client import OpenAIClient, OpenAIClientError
@@ -29,6 +30,7 @@ class GenerationService:
         schedule = self.db.get_schedule(schedule_id)
         template = self.db.get_template(schedule.template_id)
         run_time = datetime.now(UTC)
+        started = perf_counter()
         active_model = self.db.get_active_model(self.model)
         prompt_snapshot = {
             "system_prompt": template.system_prompt,
@@ -54,6 +56,7 @@ class GenerationService:
                 status="success",
                 error_text=None,
                 generated_at=run_time,
+                generation_seconds=perf_counter() - started,
             )
         except (MissingTemplateVariableError, OpenAIClientError, ValueError) as exc:
             session = self.db.create_session(
@@ -65,6 +68,7 @@ class GenerationService:
                 status="failed",
                 error_text=str(exc),
                 generated_at=run_time,
+                generation_seconds=perf_counter() - started,
             )
         self.db.update_schedule_after_run(schedule.id, when=run_time, session_id=session.id)
         self.db.prune_sessions(limit=self.retention_limit)
