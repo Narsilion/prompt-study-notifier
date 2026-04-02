@@ -12,6 +12,7 @@ from prompt_study_notifier.generation import GenerationService
 from prompt_study_notifier.live_updates import LiveUpdateBroker
 from prompt_study_notifier.openai_client import OpenAIClient
 from prompt_study_notifier.schemas import (
+    AcknowledgeSessionResponse,
     HealthResponse,
     PromptPreviewRequest,
     PromptPreviewResponse,
@@ -267,6 +268,28 @@ def create_app(settings: Settings) -> FastAPI:
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return RunNowResponse(status="deleted")
+
+    @app.post("/api/sessions/{session_id}/acknowledge", response_model=AcknowledgeSessionResponse)
+    async def acknowledge_session(session_id: int) -> AcknowledgeSessionResponse:
+        try:
+            session = db.acknowledge_session(session_id)
+            schedule = db.get_schedule(session.schedule_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return AcknowledgeSessionResponse(session=session, schedule=schedule)
+
+    @app.post("/api/sessions/{session_id}/skip", response_model=AcknowledgeSessionResponse)
+    async def skip_session(session_id: int) -> AcknowledgeSessionResponse:
+        try:
+            session = db.get_session(session_id)
+            if session.status != "success":
+                raise HTTPException(status_code=400, detail="Only successful sessions can be skipped.")
+            session = db.acknowledge_session(session_id)
+            schedule = db.get_schedule(session.schedule_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        await runtime.enqueue_now(session.schedule_id, run_source="manual")
+        return AcknowledgeSessionResponse(session=session, schedule=schedule)
 
     @app.websocket("/api/live")
     async def live_updates(websocket: WebSocket) -> None:

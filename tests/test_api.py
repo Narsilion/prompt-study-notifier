@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from prompt_study_notifier.app import create_app
+from prompt_study_notifier.schemas import StudyPayload
 from prompt_study_notifier.settings import Settings
 
 
@@ -20,6 +21,18 @@ def build_settings(tmp_path: Path) -> Settings:
     )
 
 
+def build_payload(term: str = "Reserva") -> StudyPayload:
+    return StudyPayload.model_validate(
+        {
+            "title": "Spanish drill",
+            "topic": "Articles",
+            "summary": "Practice article usage.",
+            "focus_hint": "Watch agreement.",
+            "items": [{"term": term, "translation": "reservation"}],
+        }
+    )
+
+
 def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     app = create_app(build_settings(tmp_path))
     client = TestClient(app)
@@ -29,6 +42,7 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     assert "Prompt Study Notifier" in dashboard.text
     assert "Latest Result" in dashboard.text
     assert "Schedules" in dashboard.text
+    assert "data-acknowledge-session-id" in dashboard.text
     assert "Pronounce term" in dashboard.text
     assert "Pronounce example" in dashboard.text
     assert "speechSynthesis" in dashboard.text
@@ -75,13 +89,21 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     assert preview.status_code == 200
     assert preview.json()["resolved_prompt"] == "Teach articles"
 
+    literal_preview = client.post(
+        "/api/templates/preview",
+        json={"user_prompt_template": "Teach {{topic}} with {level}", "variables": {"topic": "articles", "level": "B1"}},
+    )
+    assert literal_preview.status_code == 200
+    assert literal_preview.json()["resolved_prompt"] == "Teach {topic} with B1"
+    assert literal_preview.json()["variable_names"] == ["level"]
+
     schedule = client.post(
         "/api/schedules",
         json={
             "name": "Hourly",
             "template_id": template_id,
             "variables": {"topic": "articles"},
-            "cron_expr": "*/30 * * * *",
+            "interval_minutes": 60,
             "timezone": "UTC",
             "is_active": True,
             "notification_enabled": True,
@@ -95,6 +117,86 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     cleared = client.delete("/api/sessions")
     assert cleared.status_code == 200
     assert cleared.json()["status"] == "cleared"
+
+
+def test_acknowledge_session_endpoint_updates_session_and_schedule(tmp_path: Path) -> None:
+    app = create_app(build_settings(tmp_path))
+    with TestClient(app) as client:
+        template = client.get("/api/templates").json()[0]
+        schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "Hourly",
+                "template_id": template["id"],
+                "variables": {"target_language": "Spanish", "topic": "articles", "focus_area": "verbs", "difficulty": "A2"},
+                "interval_minutes": 60,
+                "timezone": "UTC",
+                "is_active": True,
+                "notification_enabled": True,
+            },
+        ).json()
+
+        db = app.state.db
+        session = db.create_session(
+            schedule_id=schedule["id"],
+            template_id=template["id"],
+            render_payload=build_payload(),
+            model_name="gpt-5",
+            prompt_snapshot={},
+            status="success",
+            error_text=None,
+        )
+        db.update_schedule_after_run(schedule["id"], when=datetime.now(UTC), session_id=session.id)
+
+        response = client.post(f"/api/sessions/{session.id}/acknowledge")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["session"]["id"] == session.id
+        assert payload["session"]["acknowledged_at"] is not None
+        assert payload["schedule"]["id"] == schedule["id"]
+        assert payload["schedule"]["awaiting_acknowledgement"] is False
+        assert payload["schedule"]["pending_acknowledgement_count"] == 0
+        assert payload["schedule"]["next_run_at"] is not None
+
+
+def test_run_now_endpoint_still_accepts_blocked_schedule(tmp_path: Path) -> None:
+    app = create_app(build_settings(tmp_path))
+    with TestClient(app) as client:
+        template_id = client.get("/api/templates").json()[0]["id"]
+        schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "Hourly",
+                "template_id": template_id,
+                "variables": {"target_language": "Spanish", "topic": "articles", "focus_area": "verbs", "difficulty": "A2"},
+                "interval_minutes": 60,
+                "timezone": "UTC",
+                "is_active": True,
+                "notification_enabled": True,
+            },
+        ).json()
+
+        db = app.state.db
+        session = db.create_session(
+            schedule_id=schedule["id"],
+            template_id=template_id,
+            render_payload=build_payload(),
+            model_name="gpt-5",
+            prompt_snapshot={},
+            status="success",
+            error_text=None,
+        )
+        db.update_schedule_after_run(schedule["id"], when=datetime.now(UTC), session_id=session.id)
+
+        blocked_schedule = client.get("/api/schedules").json()[0]
+        assert blocked_schedule["awaiting_acknowledgement"] is True
+        assert blocked_schedule["next_run_at"] is None
+
+        response = client.post(f"/api/schedules/{schedule['id']}/run-now")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "queued"
 
 
 def test_delete_single_session(tmp_path: Path) -> None:
@@ -119,7 +221,7 @@ def test_delete_single_session(tmp_path: Path) -> None:
                 "name": "Hourly",
                 "template_id": template_id,
                 "variables": {"topic": "articles"},
-                "cron_expr": "*/30 * * * *",
+                "interval_minutes": 60,
                 "timezone": "UTC",
                 "is_active": True,
                 "notification_enabled": True,
@@ -169,7 +271,7 @@ def test_delete_schedule_and_template(tmp_path: Path) -> None:
                 "name": "Hourly",
                 "template_id": template_id,
                 "variables": {"topic": "articles"},
-                "cron_expr": "*/30 * * * *",
+                "interval_minutes": 60,
                 "timezone": "UTC",
                 "is_active": True,
                 "notification_enabled": True,
@@ -200,7 +302,7 @@ def test_create_schedule_returns_400_for_invalid_timezone(tmp_path: Path) -> Non
             "name": "Broken",
             "template_id": template_id,
             "variables": {},
-            "cron_expr": "*/30 * * * *",
+            "interval_minutes": 60,
             "timezone": "Bad/Timezone",
             "is_active": True,
             "notification_enabled": True,
