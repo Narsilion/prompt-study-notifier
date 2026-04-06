@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -14,11 +15,31 @@ class OpenAIClientError(RuntimeError):
     """Raised when the OpenAI request fails."""
 
 
+@dataclass(slots=True)
+class OpenAIUsage:
+    prompt_tokens: int | None = None
+    cached_tokens: int | None = None
+    total_tokens: int | None = None
+
+
+@dataclass(slots=True)
+class OpenAIResult:
+    payload: StudyPayload
+    usage: OpenAIUsage
+
+
 class OpenAIClient:
     def __init__(self, api_key: str | None) -> None:
         self.api_key = api_key
 
-    def generate_payload(self, *, model: str, system_prompt: str, user_prompt: str) -> StudyPayload:
+    def generate_payload(
+        self,
+        *,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        prompt_cache_retention: str | None = None,
+    ) -> OpenAIResult:
         if not self.api_key:
             raise OpenAIClientError("OPENAI_API_KEY is not configured")
 
@@ -74,6 +95,8 @@ class OpenAIClient:
                 "json_schema": schema,
             },
         }
+        if prompt_cache_retention:
+            payload["prompt_cache_retention"] = prompt_cache_retention
         request = Request(
             OPENAI_API_URL,
             data=json.dumps(payload).encode("utf-8"),
@@ -96,4 +119,11 @@ class OpenAIClient:
             content = body["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise OpenAIClientError(f"Unexpected OpenAI response shape: {body}") from exc
-        return StudyPayload.model_validate_json(content)
+        usage_payload = body.get("usage") or {}
+        prompt_token_details = usage_payload.get("prompt_tokens_details") or {}
+        usage = OpenAIUsage(
+            prompt_tokens=usage_payload.get("prompt_tokens"),
+            cached_tokens=prompt_token_details.get("cached_tokens"),
+            total_tokens=usage_payload.get("total_tokens"),
+        )
+        return OpenAIResult(payload=StudyPayload.model_validate_json(content), usage=usage)

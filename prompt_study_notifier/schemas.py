@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class StudyItem(BaseModel):
@@ -54,7 +54,8 @@ class ScheduleUpsert(BaseModel):
     name: str
     template_id: int
     variables: dict[str, Any] = Field(default_factory=dict)
-    cron_expr: str
+    interval_minutes: int | None = Field(default=None, ge=1)
+    cron_expr: str | None = None
     timezone: str = "Europe/Belgrade"
     is_active: bool = True
     notification_enabled: bool = True
@@ -66,12 +67,20 @@ class ScheduleUpsert(BaseModel):
             return " ".join(value.split())
         return value
 
+    @model_validator(mode="after")
+    def validate_schedule_interval(self) -> "ScheduleUpsert":
+        if self.interval_minutes is None and not self.cron_expr:
+            raise ValueError("interval_minutes is required.")
+        return self
+
 
 class ScheduleRecord(ScheduleUpsert):
     id: int
     next_run_at: str | None = None
     last_run_at: str | None = None
     last_session_id: int | None = None
+    awaiting_acknowledgement: bool = False
+    pending_acknowledgement_count: int = 0
     created_at: str
     updated_at: str
     model_config = ConfigDict(from_attributes=True)
@@ -98,6 +107,7 @@ class SessionRecord(BaseModel):
     error_text: str | None = None
     generated_at: str
     generation_seconds: float | None = None
+    acknowledged_at: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -110,6 +120,7 @@ class SessionSummary(BaseModel):
     error_text: str | None = None
     title: str | None = None
     topic: str | None = None
+    acknowledged_at: str | None = None
 
 
 class LiveEvent(BaseModel):
@@ -129,6 +140,7 @@ class SettingsRecord(BaseModel):
     model: str
     active_model: str
     available_models: list[str] = Field(default_factory=list)
+    prompt_cache_retention: str
     retention_limit: int
     scheduler_poll_seconds: int
     host: str
@@ -143,6 +155,38 @@ class RunNowResponse(BaseModel):
     status: str
 
 
+class AcknowledgeSessionResponse(BaseModel):
+    session: SessionRecord
+    schedule: ScheduleRecord
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     now: datetime
+
+
+class PromptCacheRunMetric(BaseModel):
+    session_id: int
+    generated_at: str
+    model_name: str
+    status: str
+    generation_seconds: float | None = None
+    prompt_cache_retention: str | None = None
+    prompt_tokens: int | None = None
+    uncached_prompt_tokens: int | None = None
+    cached_tokens: int | None = None
+    cache_hit_ratio: float | None = None
+
+
+class PromptCacheMetrics(BaseModel):
+    total_sessions: int
+    sessions_with_usage: int
+    sessions_with_cache_hit: int
+    prompt_tokens: int
+    uncached_prompt_tokens: int
+    cached_tokens: int
+    cache_hit_ratio: float | None = None
+    avg_generation_seconds: float | None = None
+    avg_generation_seconds_with_cache_hit: float | None = None
+    avg_generation_seconds_without_cache_hit: float | None = None
+    runs: list[PromptCacheRunMetric] = Field(default_factory=list)

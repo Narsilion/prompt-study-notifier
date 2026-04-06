@@ -11,9 +11,11 @@ from prompt_study_notifier.db import Database
 from prompt_study_notifier.generation import GenerationService
 from prompt_study_notifier.live_updates import LiveUpdateBroker
 from prompt_study_notifier.openai_client import OpenAIClient
+from prompt_study_notifier.prompt_cache_metrics import build_prompt_cache_metrics
 from prompt_study_notifier.schemas import (
     AcknowledgeSessionResponse,
     HealthResponse,
+    PromptCacheMetrics,
     PromptPreviewRequest,
     PromptPreviewResponse,
     RunNowResponse,
@@ -93,6 +95,7 @@ def create_app(settings: Settings) -> FastAPI:
         db=db,
         client=client,
         model=settings.model,
+        prompt_cache_retention=settings.prompt_cache_retention,
         retention_limit=settings.retention_limit,
     )
     broker = LiveUpdateBroker()
@@ -118,6 +121,7 @@ def create_app(settings: Settings) -> FastAPI:
                 model=settings.model,
                 active_model=db.get_active_model(settings.model),
                 available_models=available_models,
+                prompt_cache_retention=settings.prompt_cache_retention,
                 retention_limit=settings.retention_limit,
                 scheduler_poll_seconds=settings.scheduler_poll_seconds,
                 host=settings.host,
@@ -132,6 +136,7 @@ def create_app(settings: Settings) -> FastAPI:
                 model=settings.model,
                 active_model=db.get_active_model(settings.model),
                 available_models=available_models,
+                prompt_cache_retention=settings.prompt_cache_retention,
                 retention_limit=settings.retention_limit,
                 scheduler_poll_seconds=settings.scheduler_poll_seconds,
                 host=settings.host,
@@ -146,6 +151,7 @@ def create_app(settings: Settings) -> FastAPI:
             model=settings.model,
             active_model=db.get_active_model(settings.model),
             available_models=available_models,
+            prompt_cache_retention=settings.prompt_cache_retention,
             retention_limit=settings.retention_limit,
             scheduler_poll_seconds=settings.scheduler_poll_seconds,
             host=settings.host,
@@ -159,6 +165,7 @@ def create_app(settings: Settings) -> FastAPI:
             model=settings.model,
             active_model=db.get_active_model(settings.model),
             available_models=available_models,
+            prompt_cache_retention=settings.prompt_cache_retention,
             retention_limit=settings.retention_limit,
             scheduler_poll_seconds=settings.scheduler_poll_seconds,
             host=settings.host,
@@ -248,6 +255,10 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/api/sessions", response_model=list[SessionSummary])
     async def list_sessions(limit: int = 20) -> list[SessionSummary]:
         return db.list_sessions(limit=limit)
+
+    @app.get("/api/metrics/prompt-cache", response_model=PromptCacheMetrics)
+    async def get_prompt_cache_metrics(limit: int = 50) -> PromptCacheMetrics:
+        return build_prompt_cache_metrics(db, limit=limit)
 
     @app.delete("/api/sessions", response_model=RunNowResponse)
     async def clear_sessions() -> RunNowResponse:
