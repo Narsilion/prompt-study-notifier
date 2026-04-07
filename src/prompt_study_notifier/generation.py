@@ -33,6 +33,8 @@ class GenerationService:
         started = perf_counter()
         active_model = self.db.get_active_model(self.model)
         prompt_snapshot = {
+            "schedule_name": schedule.name,
+            "template_name": template.name,
             "system_prompt": template.system_prompt,
             "user_prompt_template": template.user_prompt_template,
             "variables": schedule.variables,

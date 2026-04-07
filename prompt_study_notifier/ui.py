@@ -268,6 +268,10 @@ def _shared_styles() -> str:
         font-size: var(--font-size-small);
         color: var(--muted);
       }
+      .run-progress-time {
+        font-size: var(--font-size-small);
+        color: var(--muted);
+      }
       .run-progress-bar {
         position: relative;
         height: 6px;
@@ -878,6 +882,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
                       <button class="help-link" type="button" onclick="showHelp('scheduleActive')">What is this?</button>
                     </label>
                     <label><input type="checkbox" name="notification_enabled" checked> Browser notification</label>
+                    <label><input type="checkbox" name="telegram_enabled"> Send to Telegram and keep generating without acknowledgement</label>
                   </div>
                   <div class="actions">
                     <button id="saveScheduleButton" type="submit">Save Schedule</button>
@@ -892,7 +897,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
       </section>
 
       <script>
-        const state = { settings, schedules: [], sessions: [], templates: [], manualRunsInFlight: [], selectedSessionId: null };
+        const state = { settings, schedules: [], sessions: [], templates: [], manualRunsInFlight: [], manualRunStartedAt: {}, selectedSessionId: null };
         const latestResultEl = document.getElementById("latestResult");
         const dashboardLayoutEl = document.getElementById("dashboardLayout");
         const historyListEl = document.getElementById("historyList");
@@ -916,6 +921,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
         let liveSocket = null;
         let liveReconnectTimer = null;
         let liveConnectTimeout = null;
+        let manualRunTicker = null;
 
         function renderRuntimeInfo() {
           runtimeInfo.textContent = `${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
@@ -957,6 +963,93 @@ def render_dashboard(settings: SettingsRecord) -> str:
           return state.sessions[0] || null;
         }
 
+        function getQueuedSessionsBehindActive(activeSession) {
+          if (!activeSession || activeSession.acknowledged_at) {
+            return [];
+          }
+          const activeGeneratedAt = new Date(activeSession.generated_at).getTime();
+          return state.sessions.filter((session) => {
+            if (session.id === activeSession.id) {
+              return false;
+            }
+            const generatedAt = new Date(session.generated_at).getTime();
+            return generatedAt > activeGeneratedAt || (generatedAt === activeGeneratedAt && session.id > activeSession.id);
+          });
+        }
+
+        function getDisplayLevel(session, item) {
+          const difficulty = session?.prompt_snapshot?.variables?.difficulty;
+          if (typeof difficulty === "string" && difficulty.trim()) {
+            return difficulty.trim();
+          }
+          const cefrTag = (item?.tags || []).find((tag) => /^(A1|A2|B1|B2|C1|C2)$/i.test(String(tag).trim()));
+          return cefrTag ? String(cefrTag).trim().toUpperCase() : null;
+        }
+
+        function shouldShowFocus(session) {
+          const variables = session?.prompt_snapshot?.variables;
+          if (!variables || typeof variables !== "object") {
+            return false;
+          }
+          return ["focus_area", "focus"].some((key) => {
+            const value = variables[key];
+            return typeof value === "string" && value.trim();
+          });
+        }
+
+        function getSessionDisplayTitle(session) {
+          const schedule = state.schedules.find((item) => item.id === session?.schedule_id);
+          if (schedule?.name) {
+            return schedule.name;
+          }
+          const scheduleName = session?.prompt_snapshot?.schedule_name;
+          if (typeof scheduleName === "string" && scheduleName.trim()) {
+            return scheduleName.trim();
+          }
+          return session?.render_payload?.title || session?.error_text || "Untitled session";
+        }
+
+        function getLevelTags(session, item) {
+          const level = getDisplayLevel(session, item);
+          return level ? [level] : [];
+        }
+
+        function formatDisplayTerm(term) {
+          const value = String(term || "").trim();
+          if (!value) {
+            return "";
+          }
+          return value.charAt(0).toLocaleUpperCase() + value.slice(1);
+        }
+
+        function formatElapsedSeconds(totalSeconds) {
+          const seconds = Math.max(0, Math.floor(totalSeconds));
+          const minutes = Math.floor(seconds / 60);
+          const remainder = seconds % 60;
+          return minutes ? `${minutes}m ${String(remainder).padStart(2, "0")}s` : `${remainder}s`;
+        }
+
+        function getManualRunElapsed(scheduleId) {
+          const startedAt = state.manualRunStartedAt[scheduleId];
+          if (!startedAt) {
+            return null;
+          }
+          return formatElapsedSeconds((Date.now() - startedAt) / 1000);
+        }
+
+        function syncManualRunTicker() {
+          if (state.manualRunsInFlight.length && manualRunTicker === null) {
+            manualRunTicker = window.setInterval(() => {
+              renderSchedules();
+            }, 1000);
+            return;
+          }
+          if (!state.manualRunsInFlight.length && manualRunTicker !== null) {
+            window.clearInterval(manualRunTicker);
+            manualRunTicker = null;
+          }
+        }
+
         function syncSelectedSession() {
           const activeSession = getActiveSession();
           state.selectedSessionId = activeSession ? activeSession.id : null;
@@ -976,12 +1069,13 @@ def render_dashboard(settings: SettingsRecord) -> str:
             return;
           }
           const payload = latest.render_payload;
+          const queuedSessions = getQueuedSessionsBehindActive(latest);
           const targetLanguage = detectTargetLanguage(latest);
           const speechLocales = getSpeechLocales(targetLanguage).join(",");
           const cards = payload.items.map((item) => `
             <article class="card">
               <div class="card-header">
-                <h3>${escapeHtml(item.term)}</h3>
+                <h3>${escapeHtml(formatDisplayTerm(item.term))}</h3>
                 <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.term || "")}" data-lang="${escapeHtml(speechLocales)}" title="Pronounce term">
                   🔊
                 </button>
@@ -996,14 +1090,16 @@ def render_dashboard(settings: SettingsRecord) -> str:
               </div>
               <p><strong>Example translation:</strong> ${escapeHtml(item.example_target || "-")}</p>
               <p><strong>Notes:</strong> ${escapeHtml(item.notes || "-")}</p>
-              <p class="muted card-meta">${escapeHtml((item.tags || []).join(", "))}</p>
             </article>
           `).join("");
+          const level = payload.items.length ? getDisplayLevel(latest, payload.items[0]) : null;
           latestResultEl.innerHTML = `
-            <h3 class="result-title">${escapeHtml(payload.title)}</h3>
+            <h3 class="result-title">${escapeHtml(getSessionDisplayTitle(latest))}</h3>
             <p class="result-meta">${escapeHtml(formatDateTime(latest.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}${latest.generation_seconds != null ? ` | generated in ${escapeHtml(formatGenerationDuration(latest.generation_seconds))}` : ""}</p>
             ${!latest.acknowledged_at ? '<div class="actions" style="margin-bottom:12px;"><button type="button" data-acknowledge-session-id="' + latest.id + '">Acknowledge</button><button class="secondary" type="button" data-skip-session-id="' + latest.id + '">Skip</button></div>' : ""}
-            ${payload.focus_hint ? `<p><strong>Focus:</strong> ${escapeHtml(payload.focus_hint)}</p>` : ""}
+            ${queuedSessions.length ? `<p class="summary"><strong>Newer output is waiting.</strong> Acknowledge or skip this card to see ${queuedSessions.length === 1 ? "the newly generated result" : `the ${queuedSessions.length} newer generated results`}.</p>` : ""}
+            ${level ? `<p class="summary"><strong>Level:</strong> ${escapeHtml(level)}</p>` : ""}
+            ${payload.focus_hint && shouldShowFocus(latest) ? `<p class="summary"><strong>Focus:</strong> ${escapeHtml(payload.focus_hint)}</p>` : ""}
             <div class="cards">${cards}</div>
           `;
           updatePronounceButtons(latestResultEl);
@@ -1023,7 +1119,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
                 <button class="secondary" type="button" data-session-id="${session.id}">Open</button>
                 <button class="secondary" type="button" data-delete-session-id="${session.id}">Remove</button>
               </div>
-              <p><strong>${escapeHtml(session.render_payload?.title || session.error_text || "Untitled session")}</strong></p>
+              <p><strong>${escapeHtml(getSessionDisplayTitle(session))}</strong></p>
               <p class="muted">${escapeHtml(formatDateTime(session.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}</p>
             </article>
           `).join("");
@@ -1039,10 +1135,11 @@ def render_dashboard(settings: SettingsRecord) -> str:
             <article class="list-item">
               <p><strong>${escapeHtml(schedule.name)}</strong></p>
               <p class="muted">${escapeHtml(formatIntervalMinutes(schedule.interval_minutes))} | next: ${escapeHtml(formatDateTime(schedule.next_run_at, schedule.timezone))}${schedule.timezone ? ` (${escapeHtml(schedule.timezone)})` : ""}</p>
-              ${schedule.awaiting_acknowledgement ? `<p class="muted">Waiting for acknowledgement (${schedule.pending_acknowledgement_count})</p>` : ""}
+              ${schedule.awaiting_acknowledgement ? `<p class="muted">${schedule.telegram_enabled ? `Unreviewed cards: ${schedule.pending_acknowledgement_count}` : `Waiting for acknowledgement (${schedule.pending_acknowledgement_count})`}</p>` : ""}
               <div class="actions">
                 <span class="status">${schedule.is_active ? "active" : "paused"}</span>
-                ${schedule.awaiting_acknowledgement ? '<span class="status">blocked</span>' : ""}
+                ${schedule.awaiting_acknowledgement && !schedule.telegram_enabled ? '<span class="status">blocked</span>' : ""}
+                ${schedule.telegram_enabled ? '<span class="status">telegram</span>' : ""}
                 <button class="secondary" type="button" data-edit-schedule-id="${schedule.id}">Edit</button>
                 <button class="secondary" type="button" data-toggle-schedule-id="${schedule.id}">${schedule.is_active ? "Pause" : "Resume"}</button>
                 <button class="secondary" type="button" data-delete-schedule-id="${schedule.id}">Delete</button>
@@ -1052,6 +1149,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
                 <div class="run-progress" aria-live="polite">
                   <div class="run-progress-label">Generating study session...</div>
                   <div class="run-progress-bar" role="progressbar" aria-label="Generating study session"></div>
+                  <div class="run-progress-time">Elapsed: ${escapeHtml(getManualRunElapsed(schedule.id) || "0s")}</div>
                 </div>
               ` : ""}
             </article>
@@ -1062,10 +1160,15 @@ def render_dashboard(settings: SettingsRecord) -> str:
           const active = new Set(state.manualRunsInFlight);
           if (inFlight) {
             active.add(scheduleId);
+            if (!state.manualRunStartedAt[scheduleId]) {
+              state.manualRunStartedAt[scheduleId] = Date.now();
+            }
           } else {
             active.delete(scheduleId);
+            delete state.manualRunStartedAt[scheduleId];
           }
           state.manualRunsInFlight = Array.from(active);
+          syncManualRunTicker();
         }
 
         async function acknowledgeSession(sessionId) {
@@ -1129,6 +1232,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           scheduleForm.elements.timezone.value = "Europe/Belgrade";
           scheduleForm.elements.is_active.checked = true;
           scheduleForm.elements.notification_enabled.checked = true;
+          scheduleForm.elements.telegram_enabled.checked = false;
           saveScheduleButton.textContent = "Save Schedule";
           cancelScheduleEditButton.style.display = "none";
         }
@@ -1148,6 +1252,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           scheduleForm.elements.variables.value = JSON.stringify(schedule.variables || {}, null, 2);
           scheduleForm.elements.is_active.checked = Boolean(schedule.is_active);
           scheduleForm.elements.notification_enabled.checked = Boolean(schedule.notification_enabled);
+          scheduleForm.elements.telegram_enabled.checked = Boolean(schedule.telegram_enabled);
           saveScheduleButton.textContent = "Update Schedule";
           cancelScheduleEditButton.style.display = "";
           setSchedulesCollapsed(false);
@@ -1221,6 +1326,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
             timezone,
             is_active: form.get("is_active") === "on",
             notification_enabled: form.get("notification_enabled") === "on",
+            telegram_enabled: form.get("telegram_enabled") === "on",
           };
           await fetchJson(scheduleId ? `/api/schedules/${scheduleId}` : "/api/schedules", {
             method: scheduleId ? "PUT" : "POST",
@@ -1390,7 +1496,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           if (Notification.permission !== "granted" || session.status !== "success" || !session.render_payload) {
             return;
           }
-          const notification = new Notification(session.render_payload.title, {
+          const notification = new Notification(getSessionDisplayTitle(session), {
             body: session.render_payload.summary,
           });
           notification.onclick = () => {

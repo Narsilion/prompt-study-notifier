@@ -59,6 +59,7 @@ class ScheduleUpsert(BaseModel):
     timezone: str = "Europe/Belgrade"
     is_active: bool = True
     notification_enabled: bool = True
+    telegram_enabled: bool = False
 
     @field_validator("cron_expr", mode="before")
     @classmethod

@@ -5,7 +5,7 @@ import re
 from collections.abc import Mapping
 
 
-VARIABLE_RE = re.compile(r"{([a-zA-Z_][a-zA-Z0-9_]*)}")
+VARIABLE_RE = re.compile(r"(?<!{){([a-zA-Z_][a-zA-Z0-9_]*)}(?!})")
 RANDOM_DEFAULTS: dict[str, tuple[str, ...]] = {
     "gender": ("masculine", "feminine", "neuter"),
 }

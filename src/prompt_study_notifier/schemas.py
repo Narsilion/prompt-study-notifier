@@ -58,6 +58,7 @@ class ScheduleUpsert(BaseModel):
     timezone: str = "Europe/Belgrade"
     is_active: bool = True
     notification_enabled: bool = True
+    telegram_enabled: bool = False
 
     @field_validator("cron_expr", mode="before")
     @classmethod
@@ -72,6 +73,8 @@ class ScheduleRecord(ScheduleUpsert):
     next_run_at: str | None = None
     last_run_at: str | None = None
     last_session_id: int | None = None
+    awaiting_acknowledgement: bool = False
+    pending_acknowledgement_count: int = 0
     created_at: str
     updated_at: str
     model_config = ConfigDict(from_attributes=True)
@@ -98,6 +101,7 @@ class SessionRecord(BaseModel):
     error_text: str | None = None
     generated_at: str
     generation_seconds: float | None = None
+    acknowledged_at: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -110,6 +114,7 @@ class SessionSummary(BaseModel):
     error_text: str | None = None
     title: str | None = None
     topic: str | None = None
+    acknowledged_at: str | None = None
 
 
 class LiveEvent(BaseModel):
@@ -141,6 +146,11 @@ class SettingsUpdateRequest(BaseModel):
 
 class RunNowResponse(BaseModel):
     status: str
+
+
+class AcknowledgeSessionResponse(BaseModel):
+    session: SessionRecord
+    schedule: ScheduleRecord
 
 
 class HealthResponse(BaseModel):

@@ -13,7 +13,7 @@ Local-first web application that generates study material from scheduled prompts
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.14+
 - `OPENAI_API_KEY`
 
 ## Setup
@@ -25,6 +25,8 @@ source .venv/bin/activate
 pip install -e .[dev]
 export OPENAI_API_KEY="your_api_key_here"
 ```
+
+If you use `pyenv` or similar local version managers, the repo now targets Python `3.14`.
 
 In `zsh`, quote the extras spec:
 

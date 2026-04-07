@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from prompt_study_notifier.db import Database
 from prompt_study_notifier.generation import GenerationService
@@ -29,14 +31,25 @@ from prompt_study_notifier.schemas import (
     TemplateUpsert,
 )
 from prompt_study_notifier.settings import Settings
+from prompt_study_notifier.telegram_client import TelegramClient, TelegramClientError
 from prompt_study_notifier.ui import render_dashboard, render_templates_page
 
 
+logger = logging.getLogger(__name__)
+
+
 class SchedulerRuntime:
-    def __init__(self, service: GenerationService, broker: LiveUpdateBroker, poll_seconds: int) -> None:
+    def __init__(
+        self,
+        service: GenerationService,
+        broker: LiveUpdateBroker,
+        poll_seconds: int,
+        telegram_client: TelegramClient | None = None,
+    ) -> None:
         self.service = service
         self.broker = broker
         self.poll_seconds = poll_seconds
+        self.telegram_client = telegram_client
         self._task: asyncio.Task[None] | None = None
         self._running_schedule_ids: set[int] = set()
 
@@ -72,12 +85,49 @@ class SchedulerRuntime:
         try:
             session = await asyncio.to_thread(self.service.generate_for_schedule, schedule_id)
             event = self.service.build_live_event(session, run_source=run_source)
+            logger.info(
+                "Completed run for schedule %s with session %s status=%s run_source=%s telegram_enabled=%s",
+                schedule_id,
+                session.id,
+                session.status,
+                run_source,
+                self.telegram_client is not None,
+            )
+            if (
+                self.telegram_client is not None
+                and session.status == "success"
+                and event.schedule is not None
+                and event.schedule.telegram_enabled
+            ):
+                try:
+                    logger.info(
+                        "Sending Telegram message for session %s to schedule %s",
+                        session.id,
+                        event.schedule.id,
+                    )
+                    await asyncio.to_thread(
+                        self.telegram_client.send_session,
+                        session,
+                        event.schedule,
+                        run_source=run_source,
+                    )
+                    logger.info("Telegram message sent for session %s", session.id)
+                except TelegramClientError:
+                    logger.exception("Telegram delivery failed for session %s", session.id)
+            else:
+                logger.info(
+                    "Skipping Telegram for session %s status=%s schedule_present=%s telegram_enabled=%s",
+                    session.id,
+                    session.status,
+                    event.schedule is not None,
+                    None if event.schedule is None else event.schedule.telegram_enabled,
+                )
             await self.broker.broadcast_json(event.model_dump(mode="json"))
         finally:
             self._running_schedule_ids.discard(schedule_id)
 
 
-def create_app(settings: Settings) -> FastAPI:
+def create_app(settings: Settings, *, telegram_client: TelegramClient | None = None) -> FastAPI:
     available_models = [
         "gpt-5-mini",
         "gpt-5.4-mini",
@@ -91,6 +141,18 @@ def create_app(settings: Settings) -> FastAPI:
     db.set_app_setting("active_model", db.get_active_model(settings.model))
     db.bootstrap_defaults()
     client = OpenAIClient(settings.openai_api_key)
+    telegram_bot_token = getattr(settings, "telegram_bot_token", None) or os.environ.get("PSN_TELEGRAM_BOT_TOKEN")
+    telegram_chat_id = getattr(settings, "telegram_chat_id", None) or os.environ.get("PSN_TELEGRAM_CHAT_ID")
+    if telegram_client is None and telegram_bot_token and telegram_chat_id:
+        telegram_client = TelegramClient(
+            bot_token=telegram_bot_token,
+            chat_id=telegram_chat_id,
+        )
+    logger.info(
+        "Telegram delivery configured=%s chat_id=%s",
+        telegram_client is not None,
+        telegram_chat_id if telegram_chat_id else None,
+    )
     generation_service = GenerationService(
         db=db,
         client=client,
@@ -99,7 +161,12 @@ def create_app(settings: Settings) -> FastAPI:
         retention_limit=settings.retention_limit,
     )
     broker = LiveUpdateBroker()
-    runtime = SchedulerRuntime(generation_service, broker, settings.scheduler_poll_seconds)
+    runtime = SchedulerRuntime(
+        generation_service,
+        broker,
+        settings.scheduler_poll_seconds,
+        telegram_client=telegram_client,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -128,6 +195,10 @@ def create_app(settings: Settings) -> FastAPI:
                 port=settings.port,
             )
         )
+
+    @app.get("/favicon.ico")
+    async def favicon() -> Response:
+        return Response(status_code=204)
 
     @app.get("/templates", response_class=HTMLResponse)
     async def templates_page() -> str:

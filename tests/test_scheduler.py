@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from prompt_study_notifier.scheduler import compute_next_run, parse_cron_expr
+from prompt_study_notifier.scheduler import compute_next_run, infer_interval_minutes_from_cron, parse_cron_expr
 
 
 def test_parse_cron_expr_accepts_standard_expression() -> None:
@@ -12,5 +12,9 @@ def test_parse_cron_expr_accepts_standard_expression() -> None:
 
 def test_compute_next_run_returns_future_utc_datetime() -> None:
     after = datetime(2026, 3, 20, 10, 5, tzinfo=UTC)
-    next_run = compute_next_run("*/30 * * * *", timezone_name="UTC", after=after)
-    assert next_run == datetime(2026, 3, 20, 10, 30, tzinfo=UTC)
+    next_run = compute_next_run(60, after=after)
+    assert next_run == datetime(2026, 3, 20, 11, 5, tzinfo=UTC)
+
+
+def test_infer_interval_minutes_from_cron_uses_smallest_gap() -> None:
+    assert infer_interval_minutes_from_cron("0 * * * *", timezone_name="UTC") == 60

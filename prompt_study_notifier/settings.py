@@ -16,6 +16,8 @@ class Settings:
     prompt_cache_retention: str
     retention_limit: int
     scheduler_poll_seconds: int
+    telegram_bot_token: str | None
+    telegram_chat_id: str | None
 
 
 def resolve_project_root() -> Path:
@@ -40,4 +42,6 @@ def load_settings() -> Settings:
         prompt_cache_retention=os.environ.get("PSN_PROMPT_CACHE_RETENTION", "in_memory"),
         retention_limit=int(os.environ.get("PSN_RETENTION_LIMIT", "50")),
         scheduler_poll_seconds=int(os.environ.get("PSN_SCHEDULER_POLL_SECONDS", "15")),
+        telegram_bot_token=os.environ.get("PSN_TELEGRAM_BOT_TOKEN"),
+        telegram_chat_id=os.environ.get("PSN_TELEGRAM_CHAT_ID"),
     )

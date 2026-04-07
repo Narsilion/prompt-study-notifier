@@ -7,7 +7,7 @@ name = "prompt-study-notifier"
 version = "0.1.0"
 description = "Local prompt-driven study notifier with FastAPI, SQLite, scheduling, and live browser updates."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
   "fastapi>=0.115.0",
   "uvicorn>=0.30.0",

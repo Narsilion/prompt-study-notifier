@@ -28,7 +28,7 @@ Prompt Study Notifier is a local-first FastAPI app that stores prompt templates,
 - Settings come from environment variables via `load_settings()` and from `app_settings` in SQLite for mutable runtime settings such as `active_model`.
 
 # Development
-- Create env and install dev deps: `python3 -m venv .venv && source .venv/bin/activate && python -m pip install -e '.[dev]'`
+- Create env and install dev deps with Python 3.14: `python3.14 -m venv .venv && source .venv/bin/activate && python -m pip install -e '.[dev]'`
 - Run app: `prompt-study-notifier`
 - Default local URL: `http://127.0.0.1:8765`
 - Run tests: `pytest`

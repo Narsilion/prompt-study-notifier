@@ -29,3 +29,12 @@ def test_render_prompt_uses_random_gender_when_blank(monkeypatch) -> None:
     monkeypatch.setattr("prompt_study_notifier.rendering.random.choice", lambda choices: "neuter")
     rendered = render_prompt("Use {gender} nouns", {"gender": "  "})
     assert rendered == "Use neuter nouns"
+
+
+def test_extract_variables_ignores_double_brace_literals() -> None:
+    assert extract_variables("Teach {{topic}} with {level}") == ["level"]
+
+
+def test_render_prompt_keeps_double_brace_literals() -> None:
+    rendered = render_prompt("Teach {{topic}} with {level}", {"topic": "ignored", "level": "B1"})
+    assert rendered == "Teach {topic} with B1"

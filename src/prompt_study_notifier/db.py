@@ -13,8 +13,8 @@ from prompt_study_notifier.schemas import (
     ScheduleUpsert,
     SessionRecord,
     SessionSummary,
-    SettingsUpdateRequest,
     StudyPayload,
+    SettingsUpdateRequest,
     TemplateRecord,
     TemplateUpsert,
 )
@@ -71,6 +71,7 @@ class Database:
                     timezone TEXT NOT NULL,
                     is_active INTEGER NOT NULL DEFAULT 1,
                     notification_enabled INTEGER NOT NULL DEFAULT 1,
+                    telegram_enabled INTEGER NOT NULL DEFAULT 0,
                     next_run_at TEXT,
                     last_run_at TEXT,
                     last_session_id INTEGER,
@@ -90,6 +91,7 @@ class Database:
                     error_text TEXT,
                     generated_at TEXT NOT NULL,
                     generation_seconds REAL,
+                    acknowledged_at TEXT,
                     FOREIGN KEY(schedule_id) REFERENCES schedules(id),
                     FOREIGN KEY(template_id) REFERENCES prompt_templates(id)
                 );
@@ -106,8 +108,15 @@ class Database:
             generated_session_columns = {
                 row["name"] for row in connection.execute("PRAGMA table_info(generated_sessions)").fetchall()
             }
+            schedule_columns = {
+                row["name"] for row in connection.execute("PRAGMA table_info(schedules)").fetchall()
+            }
+            if "telegram_enabled" not in schedule_columns:
+                connection.execute("ALTER TABLE schedules ADD COLUMN telegram_enabled INTEGER NOT NULL DEFAULT 0")
             if "generation_seconds" not in generated_session_columns:
                 connection.execute("ALTER TABLE generated_sessions ADD COLUMN generation_seconds REAL")
+            if "acknowledged_at" not in generated_session_columns:
+                connection.execute("ALTER TABLE generated_sessions ADD COLUMN acknowledged_at TEXT")
             connection.commit()
 
     def get_app_setting(self, key: str, default: str | None = None) -> str | None:
@@ -354,9 +363,9 @@ class Database:
                 """
                 INSERT INTO schedules(
                     name, template_id, variables_json, cron_expr, timezone,
-                    is_active, notification_enabled, next_run_at, created_at, updated_at
+                    is_active, notification_enabled, telegram_enabled, next_run_at, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.name,
@@ -366,6 +375,7 @@ class Database:
                     payload.timezone,
                     int(payload.is_active),
                     int(payload.notification_enabled),
+                    int(payload.telegram_enabled),
                     next_run if payload.is_active else None,
                     utc_now_iso(),
                     utc_now_iso(),
@@ -375,13 +385,16 @@ class Database:
 
     def update_schedule(self, schedule_id: int, payload: ScheduleUpsert) -> ScheduleRecord:
         now = utc_now()
-        next_run = compute_next_run(payload.cron_expr, timezone_name=payload.timezone, after=now).isoformat()
+        existing_schedule = self.get_schedule(schedule_id)
+        next_run = None
+        if payload.is_active and existing_schedule.pending_acknowledgement_count == 0:
+            next_run = compute_next_run(payload.cron_expr, timezone_name=payload.timezone, after=now).isoformat()
         with self.connection() as connection:
             connection.execute(
                 """
                 UPDATE schedules
                 SET name = ?, template_id = ?, variables_json = ?, cron_expr = ?, timezone = ?,
-                    is_active = ?, notification_enabled = ?, next_run_at = ?, updated_at = ?
+                    is_active = ?, notification_enabled = ?, telegram_enabled = ?, next_run_at = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -392,39 +405,13 @@ class Database:
                     payload.timezone,
                     int(payload.is_active),
                     int(payload.notification_enabled),
-                    next_run if payload.is_active else None,
+                    int(payload.telegram_enabled),
+                    next_run,
                     utc_now_iso(),
                     schedule_id,
                 ),
             )
         return self.get_schedule(schedule_id)
-
-    def list_schedules(self) -> list[ScheduleRecord]:
-        with self.connection() as connection:
-            rows = connection.execute(
-                "SELECT * FROM schedules ORDER BY updated_at DESC, id DESC"
-            ).fetchall()
-            return [self._hydrate_schedule(row) for row in rows]
-
-    def list_due_schedules(self, now: datetime | None = None) -> list[ScheduleRecord]:
-        threshold = (now or utc_now()).isoformat()
-        with self.connection() as connection:
-            rows = connection.execute(
-                """
-                SELECT * FROM schedules
-                WHERE is_active = 1 AND next_run_at IS NOT NULL AND next_run_at <= ?
-                ORDER BY next_run_at ASC, id ASC
-                """,
-                (threshold,),
-            ).fetchall()
-            return [self._hydrate_schedule(row) for row in rows]
-
-    def get_schedule(self, schedule_id: int) -> ScheduleRecord:
-        with self.connection() as connection:
-            row = connection.execute("SELECT * FROM schedules WHERE id = ?", (schedule_id,)).fetchone()
-            if row is None:
-                raise KeyError(f"Schedule not found: {schedule_id}")
-            return self._hydrate_schedule(row)
 
     def delete_schedule(self, schedule_id: int) -> None:
         with self.connection() as connection:
@@ -438,6 +425,7 @@ class Database:
             connection.execute("DELETE FROM schedules WHERE id = ?", (schedule_id,))
 
     def _hydrate_schedule(self, row: sqlite3.Row) -> ScheduleRecord:
+        pending_acknowledgement_count = int(row["pending_acknowledgement_count"]) if "pending_acknowledgement_count" in row.keys() else 0
         return ScheduleRecord.model_validate(
             {
                 "id": row["id"],
@@ -448,9 +436,12 @@ class Database:
                 "timezone": row["timezone"],
                 "is_active": bool(row["is_active"]),
                 "notification_enabled": bool(row["notification_enabled"]),
+                "telegram_enabled": bool(row["telegram_enabled"]) if "telegram_enabled" in row.keys() else False,
                 "next_run_at": row["next_run_at"],
                 "last_run_at": row["last_run_at"],
                 "last_session_id": row["last_session_id"],
+                "awaiting_acknowledgement": pending_acknowledgement_count > 0,
+                "pending_acknowledgement_count": pending_acknowledgement_count,
                 "created_at": row["created_at"],
                 "updated_at": row["updated_at"],
             }
@@ -458,8 +449,15 @@ class Database:
 
     def update_schedule_after_run(self, schedule_id: int, *, when: datetime, session_id: int | None) -> None:
         schedule = self.get_schedule(schedule_id)
+        session = self.get_session(session_id) if session_id is not None else None
         next_run_at = None
-        if schedule.is_active:
+        blocks_future_generation = (
+            session is not None
+            and session.status == "success"
+            and session.acknowledged_at is None
+            and not schedule.telegram_enabled
+        )
+        if schedule.is_active and not blocks_future_generation:
             next_run_at = compute_next_run(
                 schedule.cron_expr,
                 timezone_name=schedule.timezone,
@@ -500,9 +498,9 @@ class Database:
                 """
                 INSERT INTO generated_sessions(
                     schedule_id, template_id, render_payload_json, model_name,
-                    prompt_snapshot_json, status, error_text, generated_at, generation_seconds
+                    prompt_snapshot_json, status, error_text, generated_at, generation_seconds, acknowledged_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     schedule_id,
@@ -514,38 +512,12 @@ class Database:
                     error_text,
                     generated_time.isoformat(),
                     generation_seconds,
+                    None,
                 ),
             )
         session = self.get_session(int(cursor.lastrowid))
         self.prune_sessions()
         return session
-
-    def list_sessions(self, *, limit: int = 20) -> list[SessionSummary]:
-        with self.connection() as connection:
-            rows = connection.execute(
-                """
-                SELECT * FROM generated_sessions
-                ORDER BY generated_at DESC, id DESC
-                LIMIT ?
-                """,
-                (limit,),
-            ).fetchall()
-        items: list[SessionSummary] = []
-        for row in rows:
-            payload = json.loads(row["render_payload_json"]) if row["render_payload_json"] else None
-            items.append(
-                SessionSummary(
-                    id=row["id"],
-                    schedule_id=row["schedule_id"],
-                    template_id=row["template_id"],
-                    status=row["status"],
-                    generated_at=row["generated_at"],
-                    error_text=row["error_text"],
-                    title=payload.get("title") if payload else None,
-                    topic=payload.get("topic") if payload else None,
-                )
-            )
-        return items
 
     def get_session(self, session_id: int) -> SessionRecord:
         with self.connection() as connection:
@@ -567,7 +539,38 @@ class Database:
             error_text=row["error_text"],
             generated_at=row["generated_at"],
             generation_seconds=row["generation_seconds"],
-            )
+            acknowledged_at=row["acknowledged_at"],
+        )
+
+    def list_schedule_terms(self, schedule_id: int) -> list[str]:
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT render_payload_json
+                FROM generated_sessions
+                WHERE schedule_id = ? AND status = 'success' AND render_payload_json IS NOT NULL
+                ORDER BY generated_at DESC, id DESC
+                """,
+                (schedule_id,),
+            ).fetchall()
+        seen: set[str] = set()
+        terms: list[str] = []
+        for row in rows:
+            try:
+                payload = StudyPayload.model_validate(json.loads(row["render_payload_json"]))
+            except Exception:
+                continue
+            if not payload.items:
+                continue
+            term = payload.items[0].term.strip()
+            if not term:
+                continue
+            normalized_term = term.casefold()
+            if normalized_term in seen:
+                continue
+            seen.add(normalized_term)
+            terms.append(term)
+        return terms
 
     def prune_sessions(self, *, limit: int = 50) -> None:
         with self.connection() as connection:
@@ -584,10 +587,12 @@ class Database:
 
     def clear_sessions(self) -> None:
         with self.connection() as connection:
-            connection.execute("UPDATE schedules SET last_session_id = NULL")
+            connection.execute("UPDATE schedules SET last_session_id = NULL, next_run_at = NULL")
             connection.execute("DELETE FROM generated_sessions")
+        self._recompute_all_schedule_next_runs()
 
     def delete_session(self, session_id: int) -> None:
+        session = self.get_session(session_id)
         with self.connection() as connection:
             row = connection.execute(
                 "SELECT id FROM generated_sessions WHERE id = ?",
@@ -602,4 +607,138 @@ class Database:
             connection.execute(
                 "DELETE FROM generated_sessions WHERE id = ?",
                 (session_id,),
+            )
+        self._recompute_schedule_next_run(session.schedule_id)
+
+    def list_sessions(self, *, limit: int = 20) -> list[SessionSummary]:
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, schedule_id, template_id, render_payload_json, status, error_text, generated_at, acknowledged_at
+                FROM generated_sessions
+                ORDER BY generated_at DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            summaries = []
+            for row in rows:
+                payload = None
+                title = None
+                topic = None
+                if row["render_payload_json"]:
+                    try:
+                        payload = StudyPayload.model_validate(json.loads(row["render_payload_json"]))
+                        title = payload.title
+                        topic = payload.topic
+                    except Exception:
+                        pass  # Ignore parsing errors
+                summaries.append(SessionSummary(
+                    id=row["id"],
+                    schedule_id=row["schedule_id"],
+                    template_id=row["template_id"],
+                    status=row["status"],
+                    generated_at=row["generated_at"],
+                    error_text=row["error_text"],
+                    title=title,
+                    topic=topic,
+                    acknowledged_at=row["acknowledged_at"],
+                ))
+            return summaries
+
+    def list_schedules(self) -> list[ScheduleRecord]:
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT schedules.*,
+                       COALESCE(ack.pending_acknowledgement_count, 0) AS pending_acknowledgement_count
+                FROM schedules
+                LEFT JOIN (
+                    SELECT schedule_id, COUNT(*) AS pending_acknowledgement_count
+                    FROM generated_sessions
+                    WHERE status = 'success' AND acknowledged_at IS NULL
+                    GROUP BY schedule_id
+                ) AS ack ON ack.schedule_id = schedules.id
+                ORDER BY schedules.updated_at DESC, schedules.id DESC
+                """
+            ).fetchall()
+            return [self._hydrate_schedule(row) for row in rows]
+
+    def list_due_schedules(self, now: datetime | None = None) -> list[ScheduleRecord]:
+        threshold = (now or utc_now()).isoformat()
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT schedules.*,
+                       COALESCE(ack.pending_acknowledgement_count, 0) AS pending_acknowledgement_count
+                FROM schedules
+                LEFT JOIN (
+                    SELECT schedule_id, COUNT(*) AS pending_acknowledgement_count
+                    FROM generated_sessions
+                    WHERE status = 'success' AND acknowledged_at IS NULL
+                    GROUP BY schedule_id
+                ) AS ack ON ack.schedule_id = schedules.id
+                WHERE schedules.is_active = 1
+                  AND schedules.next_run_at IS NOT NULL
+                  AND schedules.next_run_at <= ?
+                ORDER BY schedules.next_run_at ASC, schedules.id ASC
+                """,
+                (threshold,),
+            ).fetchall()
+            return [self._hydrate_schedule(row) for row in rows]
+
+    def get_schedule(self, schedule_id: int) -> ScheduleRecord:
+        with self.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT schedules.*,
+                       COALESCE(ack.pending_acknowledgement_count, 0) AS pending_acknowledgement_count
+                FROM schedules
+                LEFT JOIN (
+                    SELECT schedule_id, COUNT(*) AS pending_acknowledgement_count
+                    FROM generated_sessions
+                    WHERE status = 'success' AND acknowledged_at IS NULL
+                    GROUP BY schedule_id
+                ) AS ack ON ack.schedule_id = schedules.id
+                WHERE schedules.id = ?
+                """,
+                (schedule_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"Schedule not found: {schedule_id}")
+            return self._hydrate_schedule(row)
+
+    def acknowledge_session(self, session_id: int, *, acknowledged_at: datetime | None = None) -> SessionRecord:
+        session = self.get_session(session_id)
+        if session.status != "success":
+            return session
+        if session.acknowledged_at is not None:
+            return session
+        acknowledged_time = (acknowledged_at or utc_now()).isoformat()
+        with self.connection() as connection:
+            connection.execute(
+                "UPDATE generated_sessions SET acknowledged_at = ? WHERE id = ?",
+                (acknowledged_time, session_id),
+            )
+        self._recompute_schedule_next_run(session.schedule_id, after=datetime.fromisoformat(acknowledged_time))
+        return self.get_session(session_id)
+
+    def _recompute_all_schedule_next_runs(self) -> None:
+        for schedule in self.list_schedules():
+            self._recompute_schedule_next_run(schedule.id)
+
+    def _recompute_schedule_next_run(self, schedule_id: int, *, after: datetime | None = None) -> None:
+        schedule = self.get_schedule(schedule_id)
+        next_run_at = None
+        if schedule.is_active and schedule.pending_acknowledgement_count == 0:
+            base_time = after or utc_now()
+            next_run_at = compute_next_run(
+                schedule.cron_expr,
+                timezone_name=schedule.timezone,
+                after=base_time,
+            ).isoformat()
+        with self.connection() as connection:
+            connection.execute(
+                "UPDATE schedules SET next_run_at = ?, updated_at = ? WHERE id = ?",
+                (next_run_at, utc_now_iso(), schedule_id),
             )

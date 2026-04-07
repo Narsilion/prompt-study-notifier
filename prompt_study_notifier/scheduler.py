@@ -66,7 +66,7 @@ def matches_datetime(schedule: CronSchedule, value: datetime) -> bool:
     )
 
 
-def compute_next_run(expr: str, *, timezone_name: str, after: datetime | None = None) -> datetime:
+def compute_next_cron_run(expr: str, *, timezone_name: str, after: datetime | None = None) -> datetime:
     zone = ZoneInfo(timezone_name)
     base = after.astimezone(zone) if after else datetime.now(zone)
     candidate = base.replace(second=0, microsecond=0) + timedelta(minutes=1)
@@ -77,3 +77,31 @@ def compute_next_run(expr: str, *, timezone_name: str, after: datetime | None = 
             return candidate.astimezone(UTC)
         candidate += timedelta(minutes=1)
     raise ValueError(f"Could not compute next run for cron: {expr}")
+
+
+def compute_next_run(interval_minutes: int, *, after: datetime | None = None) -> datetime:
+    if interval_minutes <= 0:
+        raise ValueError("Interval must be greater than zero minutes.")
+    base = after.astimezone(UTC) if after else datetime.now(UTC)
+    return base + timedelta(minutes=interval_minutes)
+
+
+def infer_interval_minutes_from_cron(expr: str, *, timezone_name: str) -> int:
+    normalized = " ".join(expr.split())
+    if not normalized:
+        raise ValueError("Schedule interval is required.")
+
+    current = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
+    runs: list[datetime] = []
+    for _ in range(5):
+        current = compute_next_cron_run(normalized, timezone_name=timezone_name, after=current)
+        runs.append(current)
+
+    intervals = [
+        int((later - earlier).total_seconds() // 60)
+        for earlier, later in zip(runs, runs[1:], strict=False)
+        if later > earlier
+    ]
+    if not intervals:
+        raise ValueError(f"Could not infer interval from cron expression: {expr}")
+    return min(intervals)

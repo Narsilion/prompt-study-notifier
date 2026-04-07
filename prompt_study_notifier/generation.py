@@ -92,6 +92,8 @@ class GenerationService:
         prior_terms = self.db.list_schedule_terms(schedule.id)[: self.uniqueness_history_limit]
         generation_attempts: list[dict[str, object]] = []
         prompt_snapshot = {
+            "schedule_name": schedule.name,
+            "template_name": template.name,
             "system_prompt": template.system_prompt,
             "user_prompt_template": template.user_prompt_template,
             "variables": schedule.variables,
