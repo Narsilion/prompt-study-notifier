@@ -158,8 +158,12 @@ class Database:
     def get_active_model(self, default_model: str) -> str:
         return self.get_app_setting("active_model", default_model) or default_model
 
+    def get_preferred_speech_voice_uri(self) -> str:
+        return self.get_app_setting("preferred_speech_voice_uri", "") or ""
+
     def update_settings(self, payload: SettingsUpdateRequest) -> None:
         self.set_app_setting("active_model", payload.active_model)
+        self.set_app_setting("preferred_speech_voice_uri", payload.preferred_speech_voice_uri)
 
     @contextmanager
     def connection(self) -> sqlite3.Connection:

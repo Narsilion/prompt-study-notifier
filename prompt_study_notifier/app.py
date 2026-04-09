@@ -126,7 +126,6 @@ class SchedulerRuntime:
         finally:
             self._running_schedule_ids.discard(schedule_id)
 
-
 def create_app(settings: Settings, *, telegram_client: TelegramClient | None = None) -> FastAPI:
     available_models = [
         "gpt-5-mini",
@@ -168,6 +167,19 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
         telegram_client=telegram_client,
     )
 
+    def build_settings_record() -> SettingsRecord:
+        return SettingsRecord(
+            model=settings.model,
+            active_model=db.get_active_model(settings.model),
+            preferred_speech_voice_uri=db.get_preferred_speech_voice_uri(),
+            available_models=available_models,
+            prompt_cache_retention=settings.prompt_cache_retention,
+            retention_limit=settings.retention_limit,
+            scheduler_poll_seconds=settings.scheduler_poll_seconds,
+            host=settings.host,
+            port=settings.port,
+        )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.settings = settings
@@ -183,18 +195,7 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard() -> str:
-        return render_dashboard(
-            SettingsRecord(
-                model=settings.model,
-                active_model=db.get_active_model(settings.model),
-                available_models=available_models,
-                prompt_cache_retention=settings.prompt_cache_retention,
-                retention_limit=settings.retention_limit,
-                scheduler_poll_seconds=settings.scheduler_poll_seconds,
-                host=settings.host,
-                port=settings.port,
-            )
-        )
+        return render_dashboard(build_settings_record())
 
     @app.get("/favicon.ico")
     async def favicon() -> Response:
@@ -202,46 +203,16 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
 
     @app.get("/templates", response_class=HTMLResponse)
     async def templates_page() -> str:
-        return render_templates_page(
-            SettingsRecord(
-                model=settings.model,
-                active_model=db.get_active_model(settings.model),
-                available_models=available_models,
-                prompt_cache_retention=settings.prompt_cache_retention,
-                retention_limit=settings.retention_limit,
-                scheduler_poll_seconds=settings.scheduler_poll_seconds,
-                host=settings.host,
-                port=settings.port,
-            ),
-            db.list_templates(),
-        )
+        return render_templates_page(build_settings_record(), db.list_templates())
 
     @app.get("/api/settings", response_model=SettingsRecord)
     async def get_settings() -> SettingsRecord:
-        return SettingsRecord(
-            model=settings.model,
-            active_model=db.get_active_model(settings.model),
-            available_models=available_models,
-            prompt_cache_retention=settings.prompt_cache_retention,
-            retention_limit=settings.retention_limit,
-            scheduler_poll_seconds=settings.scheduler_poll_seconds,
-            host=settings.host,
-            port=settings.port,
-        )
+        return build_settings_record()
 
     @app.put("/api/settings", response_model=SettingsRecord)
     async def update_settings(payload: SettingsUpdateRequest) -> SettingsRecord:
         db.update_settings(payload)
-        return SettingsRecord(
-            model=settings.model,
-            active_model=db.get_active_model(settings.model),
-            available_models=available_models,
-            prompt_cache_retention=settings.prompt_cache_retention,
-            retention_limit=settings.retention_limit,
-            scheduler_poll_seconds=settings.scheduler_poll_seconds,
-            host=settings.host,
-            port=settings.port,
-        )
+        return build_settings_record()
 
     @app.get("/api/health", response_model=HealthResponse)
     async def health() -> HealthResponse:

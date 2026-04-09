@@ -79,7 +79,7 @@ def format_session_message(session: SessionRecord, schedule: ScheduleRecord, *, 
                 lines.append(f"🌐 Translation: {escape(item.example_target)}")
             if item.notes:
                 lines.extend(["", f"📎 Note: {escape(item.notes)}"])
-    lines.extend(["", f"⏰ Schedule: {escape(schedule.name)}", f"⚙️ Run: {escape(run_label)}"])
+    lines.extend(["", f"⚙️ Run: {escape(run_label)}"])
     return "\n".join(lines)
 
 

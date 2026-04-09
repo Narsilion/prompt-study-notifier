@@ -9,8 +9,6 @@ from prompt_study_notifier.schemas import StudyPayload
 
 
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-
-
 class OpenAIClientError(RuntimeError):
     """Raised when the OpenAI request fails."""
 

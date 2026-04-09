@@ -140,6 +140,7 @@ class BrowserNotificationPayload(BaseModel):
 class SettingsRecord(BaseModel):
     model: str
     active_model: str
+    preferred_speech_voice_uri: str = ""
     available_models: list[str] = Field(default_factory=list)
     prompt_cache_retention: str
     retention_limit: int
@@ -150,6 +151,7 @@ class SettingsRecord(BaseModel):
 
 class SettingsUpdateRequest(BaseModel):
     active_model: str
+    preferred_speech_voice_uri: str = ""
 
 
 class RunNowResponse(BaseModel):

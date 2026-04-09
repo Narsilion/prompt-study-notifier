@@ -16,8 +16,8 @@ class Settings:
     prompt_cache_retention: str
     retention_limit: int
     scheduler_poll_seconds: int
-    telegram_bot_token: str | None
-    telegram_chat_id: str | None
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
 
 
 def resolve_project_root() -> Path:

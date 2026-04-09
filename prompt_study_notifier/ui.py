@@ -682,6 +682,13 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
         if (!voices.length) {{
           return null;
         }}
+        const preferredVoiceUri = String(state?.settings?.preferred_speech_voice_uri || "").trim();
+        if (preferredVoiceUri) {{
+          const selectedVoice = voices.find((voice) => voice.voiceURI === preferredVoiceUri);
+          if (selectedVoice) {{
+            return selectedVoice;
+          }}
+        }}
         for (const locale of preferredLocales) {{
           const exactVoice = voices.find((voice) => localeMatches(locale, voice.lang));
           if (exactVoice) {{
@@ -790,9 +797,18 @@ def render_dashboard(settings: SettingsRecord) -> str:
             <span class="chip" id="connectionStatus">Connecting…</span>
             <span class="chip" id="runtimeInfo"></span>
           </div>
-          <form id="modelForm" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <select id="modelInput" name="active_model">__MODEL_OPTIONS__</select>
-            <button type="submit">Save Model</button>
+          <form id="modelForm" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+            <label class="field" style="margin:0; min-width:220px;">
+              <span class="field-label">Model</span>
+              <select id="modelInput" name="active_model">__MODEL_OPTIONS__</select>
+            </label>
+            <label class="field" style="margin:0; min-width:280px;">
+              <span class="field-label">Preferred Voice</span>
+              <select id="speechVoiceInput" name="preferred_speech_voice_uri">
+                <option value="">Automatic voice</option>
+              </select>
+            </label>
+            <button type="submit">Save Settings</button>
           </form>
         </div>
       </section>
@@ -910,6 +926,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
         const runtimeInfo = document.getElementById("runtimeInfo");
         const modelForm = document.getElementById("modelForm");
         const modelInput = document.getElementById("modelInput");
+        const speechVoiceInput = document.getElementById("speechVoiceInput");
         const runtimePanelContentEl = document.getElementById("runtimePanelContent");
         const saveScheduleButton = document.getElementById("saveScheduleButton");
         const cancelScheduleEditButton = document.getElementById("cancelScheduleEditButton");
@@ -923,12 +940,48 @@ def render_dashboard(settings: SettingsRecord) -> str:
         let liveConnectTimeout = null;
         let manualRunTicker = null;
 
+        function voiceLabel(voice) {
+          const language = String(voice?.lang || "").trim();
+          const suffix = language ? ` (${language})` : "";
+          return `${voice?.name || "Unknown voice"}${suffix}`;
+        }
+
+        function getAvailableSpeechVoices() {
+          if (!speechSupported()) {
+            return [];
+          }
+          return window.speechSynthesis.getVoices().slice().sort((left, right) => {
+            return voiceLabel(left).localeCompare(voiceLabel(right));
+          });
+        }
+
+        function renderSpeechVoiceOptions() {
+          const selectedVoiceUri = String(state.settings.preferred_speech_voice_uri || "").trim();
+          const voices = getAvailableSpeechVoices();
+          const options = ['<option value="">Automatic voice</option>'];
+          for (const voice of voices) {
+            const voiceUri = String(voice.voiceURI || "").trim();
+            if (!voiceUri) {
+              continue;
+            }
+            options.push(`
+              <option value="${escapeHtml(voiceUri)}">${escapeHtml(voiceLabel(voice))}</option>
+            `);
+          }
+          speechVoiceInput.innerHTML = options.join("");
+          speechVoiceInput.disabled = !speechSupported() || !voices.length;
+          speechVoiceInput.value = selectedVoiceUri && voices.some((voice) => voice.voiceURI === selectedVoiceUri)
+            ? selectedVoiceUri
+            : "";
+        }
+
         function renderRuntimeInfo() {
           runtimeInfo.textContent = `${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
           modelInput.innerHTML = (state.settings.available_models || []).map((model) => `
             <option value="${escapeHtml(model)}">${escapeHtml(model)}</option>
           `).join("");
           modelInput.value = state.settings.active_model;
+          renderSpeechVoiceOptions();
         }
 
         function setRuntimeCollapsed(collapsed) {
@@ -1300,10 +1353,17 @@ def render_dashboard(settings: SettingsRecord) -> str:
           event.preventDefault();
           state.settings = await fetchJson("/api/settings", {
             method: "PUT",
-            body: JSON.stringify({ active_model: modelInput.value.trim() }),
+            body: JSON.stringify({
+              active_model: modelInput.value.trim(),
+              preferred_speech_voice_uri: speechVoiceInput.value.trim(),
+            }),
           });
           renderRuntimeInfo();
         });
+
+        if (speechSupported()) {
+          window.speechSynthesis.addEventListener("voiceschanged", renderSpeechVoiceOptions);
+        }
 
         scheduleForm.addEventListener("submit", async (event) => {
           event.preventDefault();
@@ -1449,6 +1509,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
                 timezone: schedule.timezone,
                 is_active: !schedule.is_active,
                 notification_enabled: schedule.notification_enabled,
+                telegram_enabled: schedule.telegram_enabled,
               }),
             });
             await loadAll();

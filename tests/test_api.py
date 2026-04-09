@@ -116,11 +116,10 @@ def test_format_session_message_includes_focus_when_available() -> None:
     message = format_session_message(session, schedule, run_source="scheduled")
 
     assert "🎯 Focus: Watch agreement." in message
+    assert "⏰ Schedule:" not in message
     assert "🏷️ Topic:" not in message
     assert "🗒️" not in message
     assert "🔤 Word:" not in message
-
-
 def test_format_session_message_omits_focus_when_not_requested_by_template() -> None:
     session = SessionRecord(
         id=1,
@@ -273,6 +272,8 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     assert "Pronounce term" in dashboard.text
     assert "Pronounce example" in dashboard.text
     assert "speechSynthesis" in dashboard.text
+    assert "Preferred Voice" in dashboard.text
+    assert "speechVoiceInput" in dashboard.text
     assert "Template Editor" not in dashboard.text
     assert "Existing Templates" not in dashboard.text
 
@@ -287,12 +288,17 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     settings = client.get("/api/settings")
     assert settings.status_code == 200
     assert settings.json()["active_model"] == "gpt-5"
+    assert settings.json()["preferred_speech_voice_uri"] == ""
     assert settings.json()["prompt_cache_retention"] == "in_memory"
     assert "gpt-5.4-mini" in settings.json()["available_models"]
 
-    updated_settings = client.put("/api/settings", json={"active_model": "gpt-5.4-mini"})
+    updated_settings = client.put(
+        "/api/settings",
+        json={"active_model": "gpt-5.4-mini", "preferred_speech_voice_uri": "com.apple.voice.compact.en-US.Samantha"},
+    )
     assert updated_settings.status_code == 200
     assert updated_settings.json()["active_model"] == "gpt-5.4-mini"
+    assert updated_settings.json()["preferred_speech_voice_uri"] == "com.apple.voice.compact.en-US.Samantha"
     assert updated_settings.json()["prompt_cache_retention"] == "in_memory"
 
     templates = client.get("/api/templates")
