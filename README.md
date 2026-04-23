@@ -2,6 +2,15 @@
 
 Local-first web application that generates study material from scheduled prompts and pushes updates into an open browser dashboard.
 
+## Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Setup](#setup)
+- [Run](#run)
+- [Environment](#environment)
+- [Tests](#tests)
+
 ## Features
 
 - reusable prompt templates with variable substitution
@@ -41,6 +50,12 @@ prompt-study-notifier
 ```
 
 Default URL: `http://127.0.0.1:8765`
+
+After local code changes, restart with an editable reinstall so the console script uses the latest package:
+
+```bash
+.venv/bin/python -m pip install -e '.[dev]' && prompt-study-notifier
+```
 
 ## Environment
 

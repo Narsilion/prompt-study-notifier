@@ -8,15 +8,16 @@ from prompt_study_notifier.schemas import SettingsRecord, TemplateRecord
 def _shared_styles() -> str:
     return """
       :root {
-        --bg-top: #f6efe1;
-        --bg-bottom: #ddeaf1;
-        --surface: rgba(255, 253, 248, 0.84);
-        --ink: #18222f;
-        --muted: #61717f;
-        --accent: #bb5a34;
-        --accent-strong: #8e3f20;
-        --line: rgba(24, 34, 47, 0.09);
-        --shadow: 0 24px 70px rgba(24, 34, 47, 0.14);
+        --bg-top: #09111e;
+        --bg-bottom: #02060d;
+        --surface: rgba(11, 18, 32, 0.82);
+        --surface-strong: rgba(18, 27, 45, 0.92);
+        --ink: #ecf1f8;
+        --muted: #97a6bc;
+        --accent: #ff8e5a;
+        --accent-strong: #d35b30;
+        --line: rgba(151, 166, 188, 0.18);
+        --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
         --font-size-body: 14px;
         --font-size-small: 12px;
         --font-size-ui: 13px;
@@ -30,8 +31,8 @@ def _shared_styles() -> str:
         font-size: var(--font-size-body);
         line-height: 1.45;
         background:
-          radial-gradient(circle at top left, rgba(255,255,255,0.75), transparent 30%),
-          radial-gradient(circle at right, rgba(187,90,52,0.16), transparent 28%),
+          radial-gradient(circle at top left, rgba(120, 164, 255, 0.14), transparent 30%),
+          radial-gradient(circle at right, rgba(255, 142, 90, 0.16), transparent 28%),
           linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
       }
       .page {
@@ -46,7 +47,7 @@ def _shared_styles() -> str:
         padding: 14px 18px;
         border-radius: 22px;
         border: 1px solid var(--line);
-        background: rgba(255,255,255,0.58);
+        background: rgba(8, 13, 24, 0.72);
         backdrop-filter: blur(10px);
         box-shadow: var(--shadow);
       }
@@ -62,7 +63,7 @@ def _shared_styles() -> str:
         border-radius: 999px;
         color: var(--ink);
         text-decoration: none;
-        background: rgba(24,34,47,0.06);
+        background: rgba(151, 166, 188, 0.12);
       }
       .nav-link[data-active="true"] {
         background: linear-gradient(135deg, var(--accent), var(--accent-strong));
@@ -73,9 +74,9 @@ def _shared_styles() -> str:
         padding: 26px;
         border-radius: 28px;
         background:
-          linear-gradient(135deg, rgba(24,34,47,0.96), rgba(44,63,81,0.92)),
-          linear-gradient(135deg, rgba(187,90,52,0.46), rgba(255,255,255,0.08));
-        color: #f8f3ec;
+          linear-gradient(135deg, rgba(7, 14, 26, 0.96), rgba(19, 30, 49, 0.94)),
+          linear-gradient(135deg, rgba(255, 142, 90, 0.26), rgba(120, 164, 255, 0.08));
+        color: #f8f4ef;
         box-shadow: var(--shadow);
       }
       .hero h1 {
@@ -84,15 +85,15 @@ def _shared_styles() -> str:
         font-size: clamp(34px, 4.8vw, 56px);
         line-height: 0.95;
       }
-      .hero p { margin: 0; max-width: 820px; color: rgba(248,243,236,0.82); }
+      .hero p { margin: 0; max-width: 820px; color: rgba(236, 241, 248, 0.78); }
       .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
       .chip {
         display: inline-flex;
         align-items: center;
         padding: 7px 12px;
         border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(236, 241, 248, 0.14);
+        background: rgba(236, 241, 248, 0.06);
         font-size: var(--font-size-ui);
       }
       .layout {
@@ -146,7 +147,7 @@ def _shared_styles() -> str:
       .card {
         padding: 18px;
         border-radius: 20px;
-        background: rgba(255,255,255,0.68);
+        background: var(--surface-strong);
         border: 1px solid var(--line);
       }
       .card-header,
@@ -165,7 +166,7 @@ def _shared_styles() -> str:
       .card-meta { margin-top: 10px; }
       .pronounce-button {
         padding: 6px 10px;
-        background: rgba(24,34,47,0.08);
+        background: rgba(151, 166, 188, 0.12);
         color: var(--ink);
         flex-shrink: 0;
         font-size: 14px;
@@ -180,7 +181,7 @@ def _shared_styles() -> str:
       .list-item {
         padding: 14px;
         border-radius: 18px;
-        background: rgba(255,255,255,0.62);
+        background: rgba(14, 22, 38, 0.88);
         border: 1px solid var(--line);
       }
       .field {
@@ -217,9 +218,14 @@ def _shared_styles() -> str:
         width: 100%;
         padding: 12px 14px;
         border-radius: 14px;
-        border: 1px solid rgba(24,34,47,0.12);
+        border: 1px solid rgba(151, 166, 188, 0.18);
         font: inherit;
-        background: rgba(255,255,255,0.92);
+        color: var(--ink);
+        background: rgba(5, 10, 19, 0.9);
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: rgba(151, 166, 188, 0.75);
       }
       textarea { min-height: 96px; resize: vertical; }
       button {
@@ -235,7 +241,7 @@ def _shared_styles() -> str:
         cursor: pointer;
       }
       button.secondary {
-        background: rgba(24,34,47,0.08);
+        background: rgba(151, 166, 188, 0.12);
         color: var(--ink);
       }
       .actions { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -248,7 +254,7 @@ def _shared_styles() -> str:
         margin: 0;
         padding: 14px;
         border-radius: 16px;
-        background: rgba(24,34,47,0.06);
+        background: rgba(4, 9, 18, 0.92);
         overflow: auto;
         white-space: pre-wrap;
       }
@@ -256,7 +262,7 @@ def _shared_styles() -> str:
         display: inline-flex;
         padding: 4px 10px;
         border-radius: 999px;
-        background: rgba(24,34,47,0.08);
+        background: rgba(151, 166, 188, 0.12);
         font-size: var(--font-size-small);
       }
       .run-progress {
@@ -277,7 +283,7 @@ def _shared_styles() -> str:
         height: 6px;
         overflow: hidden;
         border-radius: 999px;
-        background: rgba(24,34,47,0.1);
+        background: rgba(151, 166, 188, 0.14);
       }
       .run-progress-bar::after {
         content: "";
@@ -308,11 +314,11 @@ def _shared_styles() -> str:
         border: 1px solid var(--line);
         border-radius: 24px;
         padding: 0;
-        background: rgba(255, 253, 248, 0.98);
+        background: rgba(10, 16, 29, 0.98);
         box-shadow: var(--shadow);
       }
       dialog.help-dialog::backdrop {
-        background: rgba(24, 34, 47, 0.4);
+        background: rgba(0, 0, 0, 0.55);
       }
       .help-dialog-body {
         padding: 22px;
@@ -785,11 +791,9 @@ def render_dashboard(settings: SettingsRecord) -> str:
     model_options_markup = _model_options_markup(settings)
     body = """
       <section class="hero">
-        <div class="chip">Live Prompt Study Dashboard</div>
         <h1>Prompt Study Notifier</h1>
         <p>Schedule reusable prompts, generate structured study sessions, and let the open browser tab refresh itself when new material arrives.</p>
-        <div class="actions" style="justify-content:space-between; align-items:center; margin-top:16px;">
-          <button id="enableNotificationsButton" class="secondary" type="button">Enable Browser Notifications</button>
+        <div class="actions" style="justify-content:flex-end; align-items:center; margin-top:6px;">
           <button id="toggleRuntimeButton" class="secondary" type="button">Expand Runtime</button>
         </div>
         <div id="runtimePanelContent">
@@ -808,6 +812,13 @@ def render_dashboard(settings: SettingsRecord) -> str:
                 <option value="">Automatic voice</option>
               </select>
             </label>
+            <div class="field" id="browserNotificationField" style="margin:0; min-width:240px;">
+              <span class="field-label">Browser Notifications</span>
+              <div class="actions" style="align-items:center;">
+                <button id="enableNotificationsButton" class="secondary" type="button">Enable Notifications</button>
+                <span id="notificationPermissionStatus" class="muted"></span>
+              </div>
+            </div>
             <button type="submit">Save Settings</button>
           </form>
         </div>
@@ -913,7 +924,16 @@ def render_dashboard(settings: SettingsRecord) -> str:
       </section>
 
       <script>
-        const state = { settings, schedules: [], sessions: [], templates: [], manualRunsInFlight: [], manualRunStartedAt: {}, selectedSessionId: null };
+        const state = {
+          settings,
+          schedules: [],
+          sessions: [],
+          templates: [],
+          manualRunsInFlight: [],
+          manualRunStartedAt: {},
+          collapsedScheduleIds: {},
+          selectedSessionId: null,
+        };
         const latestResultEl = document.getElementById("latestResult");
         const dashboardLayoutEl = document.getElementById("dashboardLayout");
         const historyListEl = document.getElementById("historyList");
@@ -935,6 +955,9 @@ def render_dashboard(settings: SettingsRecord) -> str:
         const toggleSchedulesButton = document.getElementById("toggleSchedulesButton");
         const toggleScheduleEditorButton = document.getElementById("toggleScheduleEditorButton");
         const clearHistoryButton = document.getElementById("clearHistoryButton");
+        const browserNotificationField = document.getElementById("browserNotificationField");
+        const enableNotificationsButton = document.getElementById("enableNotificationsButton");
+        const notificationPermissionStatus = document.getElementById("notificationPermissionStatus");
         let liveSocket = null;
         let liveReconnectTimer = null;
         let liveConnectTimeout = null;
@@ -982,6 +1005,28 @@ def render_dashboard(settings: SettingsRecord) -> str:
           `).join("");
           modelInput.value = state.settings.active_model;
           renderSpeechVoiceOptions();
+        }
+
+        function renderNotificationPermission() {
+          if (!browserNotificationField || !enableNotificationsButton || !notificationPermissionStatus) {
+            return;
+          }
+          browserNotificationField.style.display = "";
+          enableNotificationsButton.style.display = "none";
+          notificationPermissionStatus.textContent = "";
+          if (!("Notification" in window)) {
+            notificationPermissionStatus.textContent = "Not supported in this browser.";
+            return;
+          }
+          if (Notification.permission === "granted") {
+            browserNotificationField.style.display = "none";
+            return;
+          }
+          if (Notification.permission === "denied") {
+            notificationPermissionStatus.textContent = "Blocked in browser settings.";
+            return;
+          }
+          enableNotificationsButton.style.display = "";
         }
 
         function setRuntimeCollapsed(collapsed) {
@@ -1186,25 +1231,35 @@ def render_dashboard(settings: SettingsRecord) -> str:
           `).join("");
           schedulesListEl.innerHTML = state.schedules.map((schedule) => `
             <article class="list-item">
-              <p><strong>${escapeHtml(schedule.name)}</strong></p>
-              <p class="muted">${escapeHtml(formatIntervalMinutes(schedule.interval_minutes))} | next: ${escapeHtml(formatDateTime(schedule.next_run_at, schedule.timezone))}${schedule.timezone ? ` (${escapeHtml(schedule.timezone)})` : ""}</p>
-              ${schedule.awaiting_acknowledgement ? `<p class="muted">${schedule.telegram_enabled ? `Unreviewed cards: ${schedule.pending_acknowledgement_count}` : `Waiting for acknowledgement (${schedule.pending_acknowledgement_count})`}</p>` : ""}
-              <div class="actions">
-                <span class="status">${schedule.is_active ? "active" : "paused"}</span>
-                ${schedule.awaiting_acknowledgement && !schedule.telegram_enabled ? '<span class="status">blocked</span>' : ""}
-                ${schedule.telegram_enabled ? '<span class="status">telegram</span>' : ""}
-                <button class="secondary" type="button" data-edit-schedule-id="${schedule.id}">Edit</button>
-                <button class="secondary" type="button" data-toggle-schedule-id="${schedule.id}">${schedule.is_active ? "Pause" : "Resume"}</button>
-                <button class="secondary" type="button" data-delete-schedule-id="${schedule.id}">Delete</button>
-                <button class="secondary" type="button" data-run-now="${schedule.id}" ${state.manualRunsInFlight.includes(schedule.id) ? 'disabled aria-busy="true"' : ""}>${state.manualRunsInFlight.includes(schedule.id) ? "Running..." : "Run Now"}</button>
+              <div class="card-header">
+                <p><strong>${escapeHtml(schedule.name)}</strong></p>
+                <button
+                  class="secondary"
+                  type="button"
+                  data-collapse-schedule-id="${schedule.id}"
+                  data-collapsed="${state.collapsedScheduleIds[schedule.id] ? "true" : "false"}"
+                >${state.collapsedScheduleIds[schedule.id] ? "Expand" : "Collapse"}</button>
               </div>
-              ${state.manualRunsInFlight.includes(schedule.id) ? `
-                <div class="run-progress" aria-live="polite">
-                  <div class="run-progress-label">Generating study session...</div>
-                  <div class="run-progress-bar" role="progressbar" aria-label="Generating study session"></div>
-                  <div class="run-progress-time">Elapsed: ${escapeHtml(getManualRunElapsed(schedule.id) || "0s")}</div>
+              ${state.collapsedScheduleIds[schedule.id] ? "" : `
+                <p class="muted">${escapeHtml(formatIntervalMinutes(schedule.interval_minutes))} | next: ${escapeHtml(formatDateTime(schedule.next_run_at, schedule.timezone))}${schedule.timezone ? ` (${escapeHtml(schedule.timezone)})` : ""}</p>
+                ${schedule.awaiting_acknowledgement ? `<p class="muted">${schedule.telegram_enabled ? `Unreviewed cards: ${schedule.pending_acknowledgement_count}` : `Waiting for acknowledgement (${schedule.pending_acknowledgement_count})`}</p>` : ""}
+                <div class="actions">
+                  <span class="status">${schedule.is_active ? "active" : "paused"}</span>
+                  ${schedule.awaiting_acknowledgement && !schedule.telegram_enabled ? '<span class="status">blocked</span>' : ""}
+                  ${schedule.telegram_enabled ? '<span class="status">telegram</span>' : ""}
+                  <button class="secondary" type="button" data-edit-schedule-id="${schedule.id}">Edit</button>
+                  <button class="secondary" type="button" data-toggle-schedule-id="${schedule.id}">${schedule.is_active ? "Pause" : "Resume"}</button>
+                  <button class="secondary" type="button" data-delete-schedule-id="${schedule.id}">Delete</button>
+                  <button class="secondary" type="button" data-run-now="${schedule.id}" ${state.manualRunsInFlight.includes(schedule.id) ? 'disabled aria-busy="true"' : ""}>${state.manualRunsInFlight.includes(schedule.id) ? "Running..." : "Run Now"}</button>
                 </div>
-              ` : ""}
+                ${state.manualRunsInFlight.includes(schedule.id) ? `
+                  <div class="run-progress" aria-live="polite">
+                    <div class="run-progress-label">Generating study session...</div>
+                    <div class="run-progress-bar" role="progressbar" aria-label="Generating study session"></div>
+                    <div class="run-progress-time">Elapsed: ${escapeHtml(getManualRunElapsed(schedule.id) || "0s")}</div>
+                  </div>
+                ` : ""}
+              `}
             </article>
           `).join("") || '<p class="muted">No schedules yet.</p>';
         }
@@ -1487,6 +1542,13 @@ def render_dashboard(settings: SettingsRecord) -> str:
         });
 
         schedulesListEl.addEventListener("click", async (event) => {
+          const collapseButton = event.target.closest("[data-collapse-schedule-id]");
+          if (collapseButton) {
+            const scheduleId = Number(collapseButton.dataset.collapseScheduleId);
+            state.collapsedScheduleIds[scheduleId] = !state.collapsedScheduleIds[scheduleId];
+            renderSchedules();
+            return;
+          }
           const editButton = event.target.closest("[data-edit-schedule-id]");
           if (editButton) {
             loadScheduleIntoForm(Number(editButton.dataset.editScheduleId));
@@ -1545,22 +1607,24 @@ def render_dashboard(settings: SettingsRecord) -> str:
           }
         });
 
-        document.getElementById("enableNotificationsButton").addEventListener("click", async () => {
+        enableNotificationsButton.addEventListener("click", async () => {
           if (!("Notification" in window)) {
-            alert("This browser does not support notifications.");
+            renderNotificationPermission();
             return;
           }
           await Notification.requestPermission();
+          renderNotificationPermission();
         });
 
         function notifyBrowser(session) {
-          if (Notification.permission !== "granted" || session.status !== "success" || !session.render_payload) {
+          if (!("Notification" in window) || Notification.permission !== "granted" || session.status !== "success" || !session.render_payload) {
             return;
           }
           const notification = new Notification(getSessionDisplayTitle(session), {
             body: session.render_payload.summary,
           });
           notification.onclick = () => {
+            notification.close();
             window.focus();
             state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)];
             renderHistory();
@@ -1629,6 +1693,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
         }
 
         renderRuntimeInfo();
+        renderNotificationPermission();
         setRuntimeCollapsed(true);
         setHistoryCollapsed(true);
         setSchedulesCollapsed(false);

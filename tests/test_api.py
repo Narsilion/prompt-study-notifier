@@ -632,6 +632,33 @@ def test_successful_session_sends_telegram_only_when_schedule_telegram_enabled(t
         assert telegram_client.calls[0]["schedule"].id == enabled_schedule.id
 
 
+def test_completed_run_log_reports_schedule_telegram_flag(tmp_path: Path, caplog) -> None:
+    telegram_client = FakeTelegramClient()
+    app = create_app(build_settings(tmp_path))
+    with TestClient(app):
+        app.state.scheduler_runtime.telegram_client = telegram_client
+        app.state.generation_service.client = FakeOpenAIClient()
+        template = app.state.db.list_templates()[0]
+        schedule = app.state.db.create_schedule(
+            ScheduleUpsert(
+                name="No Telegram",
+                template_id=template.id,
+                variables={"target_language": "Spanish", "topic": "articles", "focus_area": "verbs", "difficulty": "A2"},
+                interval_minutes=60,
+                timezone="UTC",
+                is_active=True,
+                notification_enabled=True,
+                telegram_enabled=False,
+            )
+        )
+
+        with caplog.at_level("INFO", logger="prompt_study_notifier.app"):
+            asyncio.run(app.state.scheduler_runtime._run_schedule(schedule.id, run_source="scheduled"))
+
+        assert "telegram_enabled=False" in caplog.text
+        assert "telegram_enabled=True" not in caplog.text
+
+
 def test_database_initialize_adds_telegram_enabled_column_with_default_false(tmp_path: Path) -> None:
     db_path = tmp_path / "legacy.db"
     connection = sqlite3.connect(db_path)

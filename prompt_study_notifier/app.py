@@ -91,7 +91,7 @@ class SchedulerRuntime:
                 session.id,
                 session.status,
                 run_source,
-                self.telegram_client is not None,
+                None if event.schedule is None else event.schedule.telegram_enabled,
             )
             if (
                 self.telegram_client is not None
