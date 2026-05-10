@@ -15,7 +15,7 @@ Local-first web application that generates study material from scheduled prompts
 
 - reusable prompt templates with variable substitution
 - schedules stored in SQLite
-- OpenAI-backed generation with strict JSON validation
+- OpenAI or GitHub Models-backed generation with strict JSON validation
 - recent session history
 - live dashboard updates over WebSocket
 - browser notifications for new content when permission is granted
@@ -23,7 +23,7 @@ Local-first web application that generates study material from scheduled prompts
 ## Requirements
 
 - Python 3.14+
-- `OPENAI_API_KEY`
+- `OPENAI_API_KEY` or `GITHUB_MODELS_TOKEN`/`GITHUB_TOKEN`
 
 ## Setup
 
@@ -33,6 +33,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
 export OPENAI_API_KEY="your_api_key_here"
+# or:
+export PSN_AI_PROVIDER="github"
+export GITHUB_MODELS_TOKEN="your_github_models_token"
 ```
 
 If you use `pyenv` or similar local version managers, the repo now targets Python `3.14`.
@@ -59,7 +62,10 @@ After local code changes, restart with an editable reinstall so the console scri
 
 ## Environment
 
-- `OPENAI_API_KEY` required for real generation
+- `OPENAI_API_KEY` required for real OpenAI generation
+- `PSN_AI_PROVIDER` default `openai`; set to `github` for GitHub Models
+- `GITHUB_MODELS_TOKEN` or `GITHUB_TOKEN` required for real GitHub Models generation
+- `PSN_GITHUB_MODELS` comma-separated GitHub Models fallback list, default `openai/gpt-4.1`
 - `PSN_MODEL` default `gpt-5`
 - `PSN_HOST` default `127.0.0.1`
 - `PSN_PORT` default `8765`

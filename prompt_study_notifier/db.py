@@ -158,10 +158,14 @@ class Database:
     def get_active_model(self, default_model: str) -> str:
         return self.get_app_setting("active_model", default_model) or default_model
 
+    def get_active_ai_provider(self, default_provider: str) -> str:
+        return self.get_app_setting("active_ai_provider", default_provider) or default_provider
+
     def get_preferred_speech_voice_uri(self) -> str:
         return self.get_app_setting("preferred_speech_voice_uri", "") or ""
 
     def update_settings(self, payload: SettingsUpdateRequest) -> None:
+        self.set_app_setting("active_ai_provider", payload.active_ai_provider)
         self.set_app_setting("active_model", payload.active_model)
         self.set_app_setting("preferred_speech_voice_uri", payload.preferred_speech_voice_uri)
 

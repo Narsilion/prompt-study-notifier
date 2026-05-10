@@ -140,8 +140,11 @@ class BrowserNotificationPayload(BaseModel):
 class SettingsRecord(BaseModel):
     model: str
     active_model: str
+    active_ai_provider: str = "openai"
+    available_ai_providers: list[str] = Field(default_factory=lambda: ["openai"])
     preferred_speech_voice_uri: str = ""
     available_models: list[str] = Field(default_factory=list)
+    available_models_by_provider: dict[str, list[str]] = Field(default_factory=dict)
     prompt_cache_retention: str
     retention_limit: int
     scheduler_poll_seconds: int
@@ -151,7 +154,32 @@ class SettingsRecord(BaseModel):
 
 class SettingsUpdateRequest(BaseModel):
     active_model: str
+    active_ai_provider: str = "openai"
     preferred_speech_voice_uri: str = ""
+
+
+class ModelListResponse(BaseModel):
+    provider: str
+    models: list[str] = Field(default_factory=list)
+    source: str = "configured"
+    detail: str | None = None
+
+
+class AIDiagnosticsResponse(BaseModel):
+    active_ai_provider: str
+    active_model: str
+    github_token_configured: bool
+    github_token_source: str | None = None
+    github_token_fingerprint: str | None = None
+    active_model_in_configured_github_models: bool
+    configured_github_model_count: int
+
+
+class AIProbeResponse(BaseModel):
+    provider: str
+    model: str
+    status: str
+    detail: str | None = None
 
 
 class RunNowResponse(BaseModel):

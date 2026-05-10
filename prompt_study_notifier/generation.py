@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from time import perf_counter
 
 from prompt_study_notifier.db import Database
-from prompt_study_notifier.openai_client import OpenAIClient, OpenAIClientError, OpenAIUsage
+from prompt_study_notifier.openai_client import AIClientError, OpenAIClient, OpenAIUsage
 from prompt_study_notifier.rendering import MissingTemplateVariableError, extract_variables, render_prompt
 from prompt_study_notifier.schemas import LiveEvent, SessionRecord
 
@@ -161,7 +161,7 @@ class GenerationService:
                 generated_at=run_time,
                 generation_seconds=perf_counter() - started,
             )
-        except (MissingTemplateVariableError, OpenAIClientError, ValueError) as exc:
+        except (MissingTemplateVariableError, AIClientError, ValueError) as exc:
             session = self.db.create_session(
                 schedule_id=schedule.id,
                 template_id=template.id,

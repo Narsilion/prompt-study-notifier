@@ -5,11 +5,12 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+import prompt_study_notifier.app as app_module
 from prompt_study_notifier.app import create_app
 from prompt_study_notifier.openai_client import OpenAIResult, OpenAIUsage
 from prompt_study_notifier.schemas import ScheduleRecord, ScheduleUpsert, SessionRecord, StudyPayload
 from prompt_study_notifier.settings import Settings
-from prompt_study_notifier.telegram_client import format_session_message
+from prompt_study_notifier.telegram_client import TelegramClientError, format_session_message
 
 
 def build_settings(tmp_path: Path) -> Settings:
@@ -80,12 +81,43 @@ class FakeOpenAIClient:
         )
 
 
+class RecordingGitHubModelsClient:
+    instances: list["RecordingGitHubModelsClient"] = []
+
+    def __init__(self, token: str | None) -> None:
+        self.token = token
+        self.models: list[str] = []
+        RecordingGitHubModelsClient.instances.append(self)
+
+    def list_models(self) -> list[str]:
+        return ["openai/gpt-4.1", "openai/gpt-5"]
+
+    def generate_payload(
+        self,
+        *,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        prompt_cache_retention: str | None = None,
+    ) -> OpenAIResult:
+        self.models.append(model)
+        return OpenAIResult(
+            payload=build_payload("GitHub"),
+            usage=OpenAIUsage(prompt_tokens=10, cached_tokens=0, total_tokens=12),
+        )
+
+
 class FakeTelegramClient:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
 
     def send_session(self, session: object, schedule: object, *, run_source: str) -> None:
         self.calls.append({"session": session, "schedule": schedule, "run_source": run_source})
+
+
+class FailingTelegramClient:
+    def send_session(self, session: object, schedule: object, *, run_source: str) -> None:
+        raise TelegramClientError("delivery failed")
 
 
 def test_format_session_message_includes_focus_when_available() -> None:
@@ -274,6 +306,11 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     assert "speechSynthesis" in dashboard.text
     assert "Preferred Voice" in dashboard.text
     assert "speechVoiceInput" in dashboard.text
+    assert "settingsSaveStatus" in dashboard.text
+    assert "modelLoadStatus" in dashboard.text
+    assert "state.selectedSessionId === response.session.id" in dashboard.text
+    assert "data-skip-session-id" not in dashboard.text
+    assert ">Skip<" not in dashboard.text
     assert "Template Editor" not in dashboard.text
     assert "Existing Templates" not in dashboard.text
 
@@ -291,6 +328,11 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     assert settings.json()["preferred_speech_voice_uri"] == ""
     assert settings.json()["prompt_cache_retention"] == "in_memory"
     assert "gpt-5.4-mini" in settings.json()["available_models"]
+
+    diagnostics = client.get("/api/settings/ai-diagnostics")
+    assert diagnostics.status_code == 200
+    assert diagnostics.json()["github_token_configured"] is False
+    assert diagnostics.json()["github_token_fingerprint"] is None
 
     updated_settings = client.put(
         "/api/settings",
@@ -357,6 +399,57 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     cleared = client.delete("/api/sessions")
     assert cleared.status_code == 200
     assert cleared.json()["status"] == "cleared"
+
+
+def test_github_provider_routes_generation_to_github_models(tmp_path: Path, monkeypatch) -> None:
+    RecordingGitHubModelsClient.instances = []
+    monkeypatch.setattr(app_module, "GitHubModelsClient", RecordingGitHubModelsClient)
+    settings = build_settings(tmp_path)
+    settings.ai_provider = "github"
+    settings.github_models_token = "gh-token"
+    settings.github_models = ["openai/gpt-4.1"]
+    app = create_app(settings)
+
+    with TestClient(app) as client:
+        models_response = client.get("/api/settings/models?provider=github")
+        assert models_response.status_code == 200
+        assert models_response.json()["source"] == "live"
+        assert models_response.json()["models"] == ["openai/gpt-4.1", "openai/gpt-5"]
+
+        settings_response = client.put(
+            "/api/settings",
+            json={
+                "active_ai_provider": "github",
+                "active_model": "openai/gpt-5",
+                "preferred_speech_voice_uri": "",
+            },
+        )
+        assert settings_response.status_code == 200
+        assert settings_response.json()["active_ai_provider"] == "github"
+        assert settings_response.json()["active_model"] == "openai/gpt-5"
+
+        template_id = client.get("/api/templates").json()[0]["id"]
+        schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "GitHub route",
+                "template_id": template_id,
+                "variables": {
+                    "target_language": "Spanish",
+                    "topic": "articles",
+                    "focus_area": "agreement",
+                    "difficulty": "A2",
+                },
+                "interval_minutes": 60,
+                "timezone": "UTC",
+            },
+        )
+        assert schedule.status_code == 200
+        session = app.state.generation_service.generate_for_schedule(schedule.json()["id"])
+
+    assert session.status == "success"
+    assert session.model_name == "openai/gpt-5"
+    assert RecordingGitHubModelsClient.instances[-1].models == ["openai/gpt-5"]
 
 
 def test_acknowledge_session_endpoint_updates_session_and_schedule(tmp_path: Path) -> None:
@@ -630,6 +723,41 @@ def test_successful_session_sends_telegram_only_when_schedule_telegram_enabled(t
 
         assert len(telegram_client.calls) == 1
         assert telegram_client.calls[0]["schedule"].id == enabled_schedule.id
+        disabled_session = app.state.db.get_session(app.state.db.get_schedule(disabled_schedule.id).last_session_id)
+        enabled_session = app.state.db.get_session(app.state.db.get_schedule(enabled_schedule.id).last_session_id)
+        enabled_schedule_after_run = app.state.db.get_schedule(enabled_schedule.id)
+        assert disabled_session.acknowledged_at is None
+        assert enabled_session.acknowledged_at is not None
+        assert enabled_schedule_after_run.awaiting_acknowledgement is False
+        assert enabled_schedule_after_run.pending_acknowledgement_count == 0
+
+
+def test_successful_session_stays_pending_when_telegram_delivery_fails(tmp_path: Path) -> None:
+    app = create_app(build_settings(tmp_path))
+    with TestClient(app):
+        app.state.scheduler_runtime.telegram_client = FailingTelegramClient()
+        app.state.generation_service.client = FakeOpenAIClient()
+        template = app.state.db.list_templates()[0]
+        schedule = app.state.db.create_schedule(
+            ScheduleUpsert(
+                name="Telegram",
+                template_id=template.id,
+                variables={"target_language": "Spanish", "topic": "verbs", "focus_area": "conjugation", "difficulty": "A2"},
+                interval_minutes=60,
+                timezone="UTC",
+                is_active=True,
+                notification_enabled=True,
+                telegram_enabled=True,
+            )
+        )
+
+        asyncio.run(app.state.scheduler_runtime._run_schedule(schedule.id, run_source="scheduled"))
+
+        session = app.state.db.get_session(app.state.db.get_schedule(schedule.id).last_session_id)
+        schedule_after_run = app.state.db.get_schedule(schedule.id)
+        assert session.acknowledged_at is None
+        assert schedule_after_run.awaiting_acknowledgement is True
+        assert schedule_after_run.pending_acknowledgement_count == 1
 
 
 def test_completed_run_log_reports_schedule_telegram_flag(tmp_path: Path, caplog) -> None:

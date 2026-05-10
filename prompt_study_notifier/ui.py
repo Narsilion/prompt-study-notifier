@@ -86,6 +86,14 @@ def _shared_styles() -> str:
         line-height: 0.95;
       }
       .hero p { margin: 0; max-width: 820px; color: rgba(236, 241, 248, 0.78); }
+      .hero-intro {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 8px;
+      }
+      .hero-intro p { flex: 1; }
       .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
       .chip {
         display: inline-flex;
@@ -341,6 +349,7 @@ def _shared_styles() -> str:
         .nav { flex-direction: column; align-items: stretch; }
         .card-header,
         .inline-row { flex-direction: column; }
+        .hero-intro { flex-direction: column; align-items: flex-start; }
       }
     """
 
@@ -786,14 +795,22 @@ def _model_options_markup(settings: SettingsRecord) -> str:
     )
 
 
+def _provider_options_markup(settings: SettingsRecord) -> str:
+    return "".join(
+        f'<option value="{_escape_html(provider)}"{(" selected" if provider == settings.active_ai_provider else "")}>{_escape_html(provider.title())}</option>'
+        for provider in settings.available_ai_providers
+    )
+
+
 def render_dashboard(settings: SettingsRecord) -> str:
     settings_json = json.dumps(settings.model_dump())
     model_options_markup = _model_options_markup(settings)
+    provider_options_markup = _provider_options_markup(settings)
     body = """
       <section class="hero">
         <h1>Prompt Study Notifier</h1>
-        <p>Schedule reusable prompts, generate structured study sessions, and let the open browser tab refresh itself when new material arrives.</p>
-        <div class="actions" style="justify-content:flex-end; align-items:center; margin-top:6px;">
+        <div class="hero-intro">
+          <p>Schedule reusable prompts, generate structured study sessions, and let the open browser tab refresh itself when new material arrives.</p>
           <button id="toggleRuntimeButton" class="secondary" type="button">Expand Runtime</button>
         </div>
         <div id="runtimePanelContent">
@@ -802,6 +819,10 @@ def render_dashboard(settings: SettingsRecord) -> str:
             <span class="chip" id="runtimeInfo"></span>
           </div>
           <form id="modelForm" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+            <label class="field" style="margin:0; min-width:170px;">
+              <span class="field-label">AI Provider</span>
+              <select id="providerInput" name="active_ai_provider">__PROVIDER_OPTIONS__</select>
+            </label>
             <label class="field" style="margin:0; min-width:220px;">
               <span class="field-label">Model</span>
               <select id="modelInput" name="active_model">__MODEL_OPTIONS__</select>
@@ -820,6 +841,8 @@ def render_dashboard(settings: SettingsRecord) -> str:
               </div>
             </div>
             <button type="submit">Save Settings</button>
+            <span id="settingsSaveStatus" class="muted" aria-live="polite"></span>
+            <span id="modelLoadStatus" class="muted" aria-live="polite"></span>
           </form>
         </div>
       </section>
@@ -945,8 +968,11 @@ def render_dashboard(settings: SettingsRecord) -> str:
         const connectionStatus = document.getElementById("connectionStatus");
         const runtimeInfo = document.getElementById("runtimeInfo");
         const modelForm = document.getElementById("modelForm");
+        const providerInput = document.getElementById("providerInput");
         const modelInput = document.getElementById("modelInput");
         const speechVoiceInput = document.getElementById("speechVoiceInput");
+        const settingsSaveStatus = document.getElementById("settingsSaveStatus");
+        const modelLoadStatus = document.getElementById("modelLoadStatus");
         const runtimePanelContentEl = document.getElementById("runtimePanelContent");
         const saveScheduleButton = document.getElementById("saveScheduleButton");
         const cancelScheduleEditButton = document.getElementById("cancelScheduleEditButton");
@@ -999,12 +1025,36 @@ def render_dashboard(settings: SettingsRecord) -> str:
         }
 
         function renderRuntimeInfo() {
-          runtimeInfo.textContent = `${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
-          modelInput.innerHTML = (state.settings.available_models || []).map((model) => `
+          runtimeInfo.textContent = `${state.settings.active_ai_provider}:${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
+          providerInput.innerHTML = (state.settings.available_ai_providers || []).map((provider) => `
+            <option value="${escapeHtml(provider)}">${escapeHtml(provider.charAt(0).toUpperCase() + provider.slice(1))}</option>
+          `).join("");
+          providerInput.value = state.settings.active_ai_provider;
+          const providerModels = (state.settings.available_models_by_provider || {})[providerInput.value] || state.settings.available_models || [];
+          modelInput.innerHTML = providerModels.map((model) => `
             <option value="${escapeHtml(model)}">${escapeHtml(model)}</option>
           `).join("");
           modelInput.value = state.settings.active_model;
           renderSpeechVoiceOptions();
+        }
+
+        async function refreshProviderModels(provider) {
+          modelLoadStatus.textContent = "Loading models...";
+          const result = await fetchJson(`/api/settings/models?provider=${encodeURIComponent(provider)}`);
+          state.settings.available_models_by_provider = {
+            ...(state.settings.available_models_by_provider || {}),
+            [provider]: result.models || [],
+          };
+          if (provider === state.settings.active_ai_provider) {
+            state.settings.available_models = result.models || [];
+            if (!state.settings.available_models.includes(state.settings.active_model)) {
+              state.settings.active_model = state.settings.available_models[0] || "";
+            }
+          }
+          renderRuntimeInfo();
+          modelLoadStatus.textContent = result.source === "live"
+            ? `Loaded ${(result.models || []).length} models.`
+            : (result.detail || "Using configured fallback models.");
         }
 
         function renderNotificationPermission() {
@@ -1048,31 +1098,24 @@ def render_dashboard(settings: SettingsRecord) -> str:
         }
 
         function getActiveSession() {
-          const pendingSessions = getPendingAcknowledgementSessions();
-          if (pendingSessions.length) {
-            return pendingSessions[0];
-          }
           if (state.selectedSessionId !== null) {
             const selected = state.sessions.find((session) => session.id === state.selectedSessionId);
             if (selected) {
               return selected;
             }
           }
+          const pendingSessions = getPendingAcknowledgementSessions();
+          if (pendingSessions.length) {
+            return pendingSessions[pendingSessions.length - 1];
+          }
           return state.sessions[0] || null;
         }
 
-        function getQueuedSessionsBehindActive(activeSession) {
-          if (!activeSession || activeSession.acknowledged_at) {
+        function getOtherPendingSessions(activeSession) {
+          if (!activeSession) {
             return [];
           }
-          const activeGeneratedAt = new Date(activeSession.generated_at).getTime();
-          return state.sessions.filter((session) => {
-            if (session.id === activeSession.id) {
-              return false;
-            }
-            const generatedAt = new Date(session.generated_at).getTime();
-            return generatedAt > activeGeneratedAt || (generatedAt === activeGeneratedAt && session.id > activeSession.id);
-          });
+          return getPendingAcknowledgementSessions().filter((session) => session.id !== activeSession.id);
         }
 
         function getDisplayLevel(session, item) {
@@ -1139,6 +1182,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           if (state.manualRunsInFlight.length && manualRunTicker === null) {
             manualRunTicker = window.setInterval(() => {
               renderSchedules();
+              renderLatest();
             }, 1000);
             return;
           }
@@ -1167,16 +1211,20 @@ def render_dashboard(settings: SettingsRecord) -> str:
             return;
           }
           const payload = latest.render_payload;
-          const queuedSessions = getQueuedSessionsBehindActive(latest);
+          const otherPendingSessions = getOtherPendingSessions(latest);
           const targetLanguage = detectTargetLanguage(latest);
           const speechLocales = getSpeechLocales(targetLanguage).join(",");
+          const scheduleId = latest.schedule_id;
+          const manualRunInFlight = scheduleId != null && state.manualRunsInFlight.includes(scheduleId);
           const cards = payload.items.map((item) => `
             <article class="card">
               <div class="card-header">
                 <h3>${escapeHtml(formatDisplayTerm(item.term))}</h3>
-                <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.term || "")}" data-lang="${escapeHtml(speechLocales)}" title="Pronounce term">
-                  🔊
-                </button>
+                <div class="actions">
+                  <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.term || "")}" data-lang="${escapeHtml(speechLocales)}" title="Pronounce term">
+                    🔊
+                  </button>
+                </div>
               </div>
               <p><strong>Translation:</strong> ${escapeHtml(item.translation || "-")}</p>
               <p><strong>Explanation:</strong> ${escapeHtml(item.explanation || "-")}</p>
@@ -1194,8 +1242,18 @@ def render_dashboard(settings: SettingsRecord) -> str:
           latestResultEl.innerHTML = `
             <h3 class="result-title">${escapeHtml(getSessionDisplayTitle(latest))}</h3>
             <p class="result-meta">${escapeHtml(formatDateTime(latest.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}${latest.generation_seconds != null ? ` | generated in ${escapeHtml(formatGenerationDuration(latest.generation_seconds))}` : ""}</p>
-            ${!latest.acknowledged_at ? '<div class="actions" style="margin-bottom:12px;"><button type="button" data-acknowledge-session-id="' + latest.id + '">Acknowledge</button><button class="secondary" type="button" data-skip-session-id="' + latest.id + '">Skip</button></div>' : ""}
-            ${queuedSessions.length ? `<p class="summary"><strong>Newer output is waiting.</strong> Acknowledge or skip this card to see ${queuedSessions.length === 1 ? "the newly generated result" : `the ${queuedSessions.length} newer generated results`}.</p>` : ""}
+            <div class="actions" style="margin-bottom:12px;">
+              ${!latest.acknowledged_at ? `<button type="button" data-acknowledge-session-id="${latest.id}">Acknowledge</button>` : ""}
+              ${scheduleId != null ? `<button class="secondary" type="button" data-generate-card-schedule-id="${scheduleId}" data-generate-card-session-id="${latest.id}" ${manualRunInFlight ? 'disabled aria-busy="true"' : ""}>${manualRunInFlight ? "Generating..." : "Generate New Card"}</button>` : ""}
+            </div>
+            ${manualRunInFlight ? `
+              <div class="run-progress" aria-live="polite">
+                <div class="run-progress-label">Generating study session...</div>
+                <div class="run-progress-bar" role="progressbar" aria-label="Generating study session"></div>
+                <div class="run-progress-time">Elapsed: ${escapeHtml(getManualRunElapsed(scheduleId) || "0s")}</div>
+              </div>
+            ` : ""}
+            ${otherPendingSessions.length ? `<p class="summary"><strong>${otherPendingSessions.length === 1 ? "1 older session is" : `${otherPendingSessions.length} older sessions are`} still awaiting acknowledgement.</strong> You can review them from History.</p>` : ""}
             ${level ? `<p class="summary"><strong>Level:</strong> ${escapeHtml(level)}</p>` : ""}
             ${payload.focus_hint && shouldShowFocus(latest) ? `<p class="summary"><strong>Focus:</strong> ${escapeHtml(payload.focus_hint)}</p>` : ""}
             <div class="cards">${cards}</div>
@@ -1213,7 +1271,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
               <div class="actions">
                 <span class="status">${escapeHtml(session.status)}</span>
                 ${session.status === "success" ? `<span class="status">${session.acknowledged_at ? "acknowledged" : "awaiting ack"}</span>` : ""}
-                ${session.status === "success" && !session.acknowledged_at ? `<button type="button" data-acknowledge-session-id="${session.id}">Acknowledge</button><button class="secondary" type="button" data-skip-session-id="${session.id}">Skip</button>` : ""}
+                ${session.status === "success" && !session.acknowledged_at ? `<button type="button" data-acknowledge-session-id="${session.id}">Acknowledge</button>${session.schedule_id != null ? `<button class="secondary" type="button" data-generate-card-schedule-id="${session.schedule_id}" data-generate-card-session-id="${session.id}">Generate New Card</button>` : ""}` : ""}
                 <button class="secondary" type="button" data-session-id="${session.id}">Open</button>
                 <button class="secondary" type="button" data-delete-session-id="${session.id}">Remove</button>
               </div>
@@ -1279,38 +1337,44 @@ def render_dashboard(settings: SettingsRecord) -> str:
           syncManualRunTicker();
         }
 
+        async function runScheduleNow(scheduleId) {
+          setManualRunInFlight(scheduleId, true);
+          renderSchedules();
+          renderLatest();
+          try {
+            await fetchJson(`/api/schedules/${scheduleId}/run-now`, { method: "POST" });
+          } catch (error) {
+            setManualRunInFlight(scheduleId, false);
+            renderSchedules();
+            renderLatest();
+            throw error;
+          }
+        }
+
+        async function generateNewCardFromSession(sessionId, scheduleId) {
+          const currentSession = state.sessions.find((item) => item.id === sessionId);
+          if (currentSession && !currentSession.acknowledged_at) {
+            const response = await fetchJson(`/api/sessions/${sessionId}/acknowledge`, { method: "POST" });
+            state.sessions = state.sessions.map((item) => item.id === response.session.id ? response.session : item);
+            state.schedules = state.schedules.map((item) => item.id === response.schedule.id ? response.schedule : item);
+            if (state.selectedSessionId === response.session.id) {
+              state.selectedSessionId = null;
+            }
+          }
+          await runScheduleNow(scheduleId);
+        }
+
         async function acknowledgeSession(sessionId) {
           const response = await fetchJson(`/api/sessions/${sessionId}/acknowledge`, { method: "POST" });
           state.sessions = state.sessions.map((item) => item.id === response.session.id ? response.session : item);
           state.schedules = state.schedules.map((item) => item.id === response.schedule.id ? response.schedule : item);
+          if (state.selectedSessionId === response.session.id) {
+            state.selectedSessionId = null;
+          }
           syncSelectedSession();
           renderHistory();
           renderSchedules();
           renderLatest();
-        }
-
-        async function skipSession(sessionId) {
-          const currentSession = state.sessions.find((item) => item.id === sessionId);
-          const scheduleId = currentSession?.schedule_id;
-          if (scheduleId != null) {
-            setManualRunInFlight(scheduleId, true);
-            renderSchedules();
-          }
-          try {
-            const response = await fetchJson(`/api/sessions/${sessionId}/skip`, { method: "POST" });
-            state.sessions = state.sessions.map((item) => item.id === response.session.id ? response.session : item);
-            state.schedules = state.schedules.map((item) => item.id === response.schedule.id ? response.schedule : item);
-            syncSelectedSession();
-            renderHistory();
-            renderSchedules();
-            renderLatest();
-          } catch (error) {
-            if (scheduleId != null) {
-              setManualRunInFlight(scheduleId, false);
-              renderSchedules();
-            }
-            throw error;
-          }
         }
 
         function setHistoryCollapsed(collapsed) {
@@ -1398,6 +1462,9 @@ def render_dashboard(settings: SettingsRecord) -> str:
             renderSchedules();
             renderHistory();
             renderLatest();
+            refreshProviderModels(state.settings.active_ai_provider).catch((error) => {
+              modelLoadStatus.textContent = error.message || "Could not load models.";
+            });
           } catch (error) {
             console.error("Load failed:", error);
             latestResultEl.innerHTML = `<pre>Load failed: ${escapeHtml(error.message)}</pre>`;
@@ -1406,14 +1473,38 @@ def render_dashboard(settings: SettingsRecord) -> str:
 
         modelForm.addEventListener("submit", async (event) => {
           event.preventDefault();
-          state.settings = await fetchJson("/api/settings", {
-            method: "PUT",
-            body: JSON.stringify({
-              active_model: modelInput.value.trim(),
-              preferred_speech_voice_uri: speechVoiceInput.value.trim(),
-            }),
-          });
+          settingsSaveStatus.textContent = "Saving...";
+          try {
+            state.settings = await fetchJson("/api/settings", {
+              method: "PUT",
+              body: JSON.stringify({
+                active_ai_provider: providerInput.value.trim(),
+                active_model: modelInput.value.trim(),
+                preferred_speech_voice_uri: speechVoiceInput.value.trim(),
+              }),
+            });
+            renderRuntimeInfo();
+            settingsSaveStatus.textContent = "Saved.";
+          } catch (error) {
+            settingsSaveStatus.textContent = error.message || "Settings could not be saved.";
+          }
+        });
+
+        providerInput.addEventListener("change", () => {
+          state.settings.active_ai_provider = providerInput.value;
+          const providerModels = (state.settings.available_models_by_provider || {})[providerInput.value] || [];
+          state.settings.available_models = providerModels;
+          state.settings.active_model = providerModels.includes(modelInput.value) ? modelInput.value : (providerModels[0] || "");
           renderRuntimeInfo();
+          refreshProviderModels(providerInput.value).catch((error) => {
+            modelLoadStatus.textContent = error.message || "Could not load models.";
+          });
+        });
+
+        modelInput.addEventListener("focus", () => {
+          refreshProviderModels(providerInput.value).catch((error) => {
+            modelLoadStatus.textContent = error.message || "Could not load models.";
+          });
         });
 
         if (speechSupported()) {
@@ -1473,10 +1564,11 @@ def render_dashboard(settings: SettingsRecord) -> str:
             await acknowledgeSession(sessionId);
             return;
           }
-          const skipButton = event.target.closest("[data-skip-session-id]");
-          if (skipButton) {
-            const sessionId = Number(skipButton.dataset.skipSessionId);
-            await skipSession(sessionId);
+          const generateButton = event.target.closest("[data-generate-card-schedule-id]");
+          if (generateButton) {
+            const scheduleId = Number(generateButton.dataset.generateCardScheduleId);
+            const sessionId = Number(generateButton.dataset.generateCardSessionId);
+            await generateNewCardFromSession(sessionId, scheduleId);
             return;
           }
           const button = event.target.closest("[data-session-id]");
@@ -1526,10 +1618,11 @@ def render_dashboard(settings: SettingsRecord) -> str:
             });
             return;
           }
-          const skipButton = event.target.closest("[data-skip-session-id]");
-          if (skipButton) {
-            const sessionId = Number(skipButton.dataset.skipSessionId);
-            skipSession(sessionId).catch((error) => {
+          const generateButton = event.target.closest("[data-generate-card-schedule-id]");
+          if (generateButton) {
+            const scheduleId = Number(generateButton.dataset.generateCardScheduleId);
+            const sessionId = Number(generateButton.dataset.generateCardSessionId);
+            generateNewCardFromSession(sessionId, scheduleId).catch((error) => {
               latestResultEl.innerHTML = `<pre>${escapeHtml(error.message)}</pre>`;
             });
             return;
@@ -1596,15 +1689,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           const button = event.target.closest("[data-run-now]");
           if (!button) return;
           const scheduleId = Number(button.dataset.runNow);
-          setManualRunInFlight(scheduleId, true);
-          renderSchedules();
-          try {
-            await fetchJson(`/api/schedules/${scheduleId}/run-now`, { method: "POST" });
-          } catch (error) {
-            setManualRunInFlight(scheduleId, false);
-            renderSchedules();
-            throw error;
-          }
+          await runScheduleNow(scheduleId);
         });
 
         enableNotificationsButton.addEventListener("click", async () => {
@@ -1627,6 +1712,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
             notification.close();
             window.focus();
             state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)];
+            state.selectedSessionId = session.id;
             renderHistory();
             renderLatest();
           };
@@ -1678,10 +1764,10 @@ def render_dashboard(settings: SettingsRecord) -> str:
               const session = payload.session;
               setManualRunInFlight(payload.schedule.id, false);
               state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)].slice(0, 200);
+              state.selectedSessionId = session.id;
               state.schedules = state.schedules.map((schedule) =>
                 schedule.id === payload.schedule.id ? payload.schedule : schedule
               );
-              syncSelectedSession();
               renderSchedules();
               renderHistory();
               renderLatest();
@@ -1708,7 +1794,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
     return _shell(
         "Prompt Study Notifier",
         "dashboard",
-        body.replace("__MODEL_OPTIONS__", model_options_markup),
+        body.replace("__PROVIDER_OPTIONS__", provider_options_markup).replace("__MODEL_OPTIONS__", model_options_markup),
         settings_json=settings_json,
     )
 
