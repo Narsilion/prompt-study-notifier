@@ -29,7 +29,7 @@ Prompt Study Notifier is a local-first FastAPI app that stores prompt templates,
 
 # Development
 - Create env and install dev deps with Python 3.14: `python3.14 -m venv .venv && source .venv/bin/activate && python -m pip install -e '.[dev]'`
-- Run app: `prompt-study-notifier`
+- Run app: `.venv/bin/prompt-study-notifier` from the repo root, or `prompt-study-notifier` after `source .venv/bin/activate`
 - Default local URL: `http://127.0.0.1:8765`
 - Run tests: `pytest`
 - Default DB location: `./.data/prompt-study-notifier.db`

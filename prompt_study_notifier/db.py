@@ -117,6 +117,8 @@ class Database:
                 connection.execute("ALTER TABLE schedules ADD COLUMN interval_minutes INTEGER")
             if "telegram_enabled" not in schedule_columns:
                 connection.execute("ALTER TABLE schedules ADD COLUMN telegram_enabled INTEGER NOT NULL DEFAULT 0")
+            if "preferred_speech_voice_uri" not in schedule_columns:
+                connection.execute("ALTER TABLE schedules ADD COLUMN preferred_speech_voice_uri TEXT NOT NULL DEFAULT ''")
             if "generation_seconds" not in generated_session_columns:
                 connection.execute("ALTER TABLE generated_sessions ADD COLUMN generation_seconds REAL")
             if "acknowledged_at" not in generated_session_columns:
@@ -161,13 +163,16 @@ class Database:
     def get_active_ai_provider(self, default_provider: str) -> str:
         return self.get_app_setting("active_ai_provider", default_provider) or default_provider
 
-    def get_preferred_speech_voice_uri(self) -> str:
-        return self.get_app_setting("preferred_speech_voice_uri", "") or ""
+    def get_ui_theme(self) -> str:
+        theme = self.get_app_setting("ui_theme", "dark") or "dark"
+        if theme not in {"dark", "dark_green", "dark_brown"}:
+            return "dark"
+        return theme
 
     def update_settings(self, payload: SettingsUpdateRequest) -> None:
         self.set_app_setting("active_ai_provider", payload.active_ai_provider)
         self.set_app_setting("active_model", payload.active_model)
-        self.set_app_setting("preferred_speech_voice_uri", payload.preferred_speech_voice_uri)
+        self.set_app_setting("ui_theme", payload.ui_theme)
 
     @contextmanager
     def connection(self) -> sqlite3.Connection:
@@ -343,7 +348,9 @@ class Database:
                 (template_id,),
             ).fetchone()
             if dependent_schedule is not None:
-                raise ValueError("Template is still used by one or more schedules.")
+                raise ValueError(
+                    "Template is used by one or more schedules. Delete those schedules first, then delete the template."
+                )
             connection.execute("DELETE FROM generated_sessions WHERE template_id = ?", (template_id,))
             connection.execute("DELETE FROM template_variables WHERE template_id = ?", (template_id,))
             connection.execute("DELETE FROM prompt_templates WHERE id = ?", (template_id,))
@@ -389,9 +396,9 @@ class Database:
                 """
                 INSERT INTO schedules(
                     name, template_id, variables_json, cron_expr, interval_minutes, timezone,
-                    is_active, notification_enabled, telegram_enabled, next_run_at, created_at, updated_at
+                    is_active, notification_enabled, telegram_enabled, preferred_speech_voice_uri, next_run_at, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload.name,
@@ -403,6 +410,7 @@ class Database:
                     int(payload.is_active),
                     int(payload.notification_enabled),
                     int(payload.telegram_enabled),
+                    payload.preferred_speech_voice_uri,
                     next_run if payload.is_active else None,
                     utc_now_iso(),
                     utc_now_iso(),
@@ -423,7 +431,7 @@ class Database:
                 """
                 UPDATE schedules
                 SET name = ?, template_id = ?, variables_json = ?, cron_expr = ?, interval_minutes = ?, timezone = ?,
-                    is_active = ?, notification_enabled = ?, telegram_enabled = ?, next_run_at = ?, updated_at = ?
+                    is_active = ?, notification_enabled = ?, telegram_enabled = ?, preferred_speech_voice_uri = ?, next_run_at = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -436,6 +444,7 @@ class Database:
                     int(payload.is_active),
                     int(payload.notification_enabled),
                     int(payload.telegram_enabled),
+                    payload.preferred_speech_voice_uri,
                     next_run,
                     utc_now_iso(),
                     schedule_id,
@@ -468,6 +477,7 @@ class Database:
                 "is_active": bool(row["is_active"]),
                 "notification_enabled": bool(row["notification_enabled"]),
                 "telegram_enabled": bool(row["telegram_enabled"]) if "telegram_enabled" in row.keys() else False,
+                "preferred_speech_voice_uri": row["preferred_speech_voice_uri"] if "preferred_speech_voice_uri" in row.keys() else "",
                 "next_run_at": row["next_run_at"],
                 "last_run_at": row["last_run_at"],
                 "last_session_id": row["last_session_id"],
@@ -587,22 +597,64 @@ class Database:
                 payload = StudyPayload.model_validate(json.loads(row["render_payload_json"]))
             except Exception:
                 continue
-            if not payload.items:
-                continue
-            term = payload.items[0].term.strip()
-            if not term:
-                continue
-            normalized_term = term.casefold()
-            if normalized_term in seen:
-                continue
-            seen.add(normalized_term)
-            terms.append(term)
+            for item in payload.items:
+                term = item.term.strip()
+                if not term:
+                    continue
+                normalized_term = term.casefold()
+                if normalized_term in seen:
+                    continue
+                seen.add(normalized_term)
+                terms.append(term)
         return terms
+
+    def list_schedule_history_items(self, schedule_id: int, *, limit: int = 30) -> list[dict[str, str]]:
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT render_payload_json
+                FROM generated_sessions
+                WHERE schedule_id = ? AND status = 'success' AND render_payload_json IS NOT NULL
+                ORDER BY generated_at DESC, id DESC
+                LIMIT ?
+                """,
+                (schedule_id, limit),
+            ).fetchall()
+        history_items: list[dict[str, str]] = []
+        seen_terms: set[str] = set()
+        for row in rows:
+            try:
+                payload = StudyPayload.model_validate(json.loads(row["render_payload_json"]))
+            except Exception:
+                continue
+            for item in payload.items:
+                term = item.term.strip()
+                if not term:
+                    continue
+                normalized_term = term.casefold()
+                if normalized_term in seen_terms:
+                    continue
+                seen_terms.add(normalized_term)
+                entry = {"term": term}
+                if item.example_source and item.example_source.strip():
+                    entry["example_source"] = item.example_source.strip()
+                if item.example_target and item.example_target.strip():
+                    entry["example_target"] = item.example_target.strip()
+                if item.notes and item.notes.strip():
+                    entry["notes"] = item.notes.strip()
+                history_items.append(entry)
+        return history_items
 
     def prune_sessions(self, *, limit: int = 50) -> None:
         with self.connection() as connection:
             rows = connection.execute(
-                "SELECT id FROM generated_sessions ORDER BY generated_at DESC, id DESC LIMIT -1 OFFSET ?",
+                """
+                SELECT id
+                FROM generated_sessions
+                WHERE NOT (status = 'success' AND acknowledged_at IS NULL)
+                ORDER BY generated_at DESC, id DESC
+                LIMIT -1 OFFSET ?
+                """,
                 (limit,),
             ).fetchall()
             if not rows:
@@ -637,16 +689,40 @@ class Database:
             )
         self._recompute_schedule_next_run(session.schedule_id)
 
-    def list_sessions(self, *, limit: int = 20) -> list[SessionSummary]:
+    def list_sessions(self, *, limit: int = 20, schedule_id: int | None = None) -> list[SessionSummary]:
+        schedule_filter = "WHERE schedule_id = ?" if schedule_id is not None else ""
+        pending_schedule_filter = "AND schedule_id = ?" if schedule_id is not None else ""
+        params: tuple[int, ...]
+        if schedule_id is None:
+            params = (limit,)
+        else:
+            params = (schedule_id, limit, schedule_id)
         with self.connection() as connection:
             rows = connection.execute(
-                """
+                f"""
+                WITH recent_sessions AS (
+                    SELECT id
+                    FROM generated_sessions
+                    {schedule_filter}
+                    ORDER BY generated_at DESC, id DESC
+                    LIMIT ?
+                ),
+                pending_acknowledgement_sessions AS (
+                    SELECT id
+                    FROM generated_sessions
+                    WHERE status = 'success' AND acknowledged_at IS NULL
+                    {pending_schedule_filter}
+                )
                 SELECT id, schedule_id, template_id, render_payload_json, status, error_text, generated_at, acknowledged_at
                 FROM generated_sessions
+                WHERE id IN (
+                    SELECT id FROM recent_sessions
+                    UNION
+                    SELECT id FROM pending_acknowledgement_sessions
+                )
                 ORDER BY generated_at DESC, id DESC
-                LIMIT ?
                 """,
-                (limit,),
+                params,
             ).fetchall()
             summaries = []
             for row in rows:

@@ -19,9 +19,10 @@ class TelegramClientError(RuntimeError):
 def _extract_level(session: SessionRecord, tags: list[str] | None = None) -> str | None:
     variables = session.prompt_snapshot.get("variables") if isinstance(session.prompt_snapshot, dict) else None
     if isinstance(variables, dict):
-        difficulty = variables.get("difficulty")
-        if isinstance(difficulty, str) and difficulty.strip():
-            return difficulty.strip()
+        for key in ("difficulty", "level"):
+            level = variables.get(key)
+            if isinstance(level, str) and level.strip():
+                return level.strip()
     for tag in tags or []:
         normalized = tag.strip().upper()
         if normalized in {"A1", "A2", "B1", "B2", "C1", "C2"}:

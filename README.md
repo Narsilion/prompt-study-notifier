@@ -49,7 +49,7 @@ python -m pip install -e '.[dev]'
 ## Run
 
 ```bash
-prompt-study-notifier
+.venv/bin/prompt-study-notifier
 ```
 
 Default URL: `http://127.0.0.1:8765`
@@ -57,8 +57,10 @@ Default URL: `http://127.0.0.1:8765`
 After local code changes, restart with an editable reinstall so the console script uses the latest package:
 
 ```bash
-.venv/bin/python -m pip install -e '.[dev]' && prompt-study-notifier
+.venv/bin/python -m pip install -e '.[dev]' && .venv/bin/prompt-study-notifier
 ```
+
+If the virtual environment is already active, `prompt-study-notifier` is also available directly.
 
 ## Environment
 
@@ -66,7 +68,7 @@ After local code changes, restart with an editable reinstall so the console scri
 - `PSN_AI_PROVIDER` default `openai`; set to `github` for GitHub Models
 - `GITHUB_MODELS_TOKEN` or `GITHUB_TOKEN` required for real GitHub Models generation
 - `PSN_GITHUB_MODELS` comma-separated GitHub Models fallback list, default `openai/gpt-4.1`
-- `PSN_MODEL` default `gpt-5`
+- `PSN_MODEL` default `gpt-4o`
 - `PSN_HOST` default `127.0.0.1`
 - `PSN_PORT` default `8765`
 - `PSN_DB_PATH` default `./.data/prompt-study-notifier.db`

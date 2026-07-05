@@ -17,6 +17,26 @@ def _shared_styles() -> str:
         --accent: #ff8e5a;
         --accent-strong: #d35b30;
         --line: rgba(151, 166, 188, 0.18);
+        --bg-glow-left: rgba(120, 164, 255, 0.14);
+        --bg-glow-right: rgba(255, 142, 90, 0.16);
+        --nav-bg: rgba(8, 13, 24, 0.72);
+        --hero-bg-primary: rgba(7, 14, 26, 0.96);
+        --hero-bg-secondary: rgba(19, 30, 49, 0.94);
+        --hero-accent-bg: rgba(255, 142, 90, 0.26);
+        --hero-cool-bg: rgba(120, 164, 255, 0.08);
+        --hero-ink: #f8f4ef;
+        --hero-muted: rgba(236, 241, 248, 0.78);
+        --soft-bg: rgba(151, 166, 188, 0.12);
+        --soft-bg-strong: rgba(151, 166, 188, 0.14);
+        --chip-bg: rgba(236, 241, 248, 0.06);
+        --chip-border: rgba(236, 241, 248, 0.14);
+        --list-bg: rgba(14, 22, 38, 0.88);
+        --input-bg: rgba(5, 10, 19, 0.9);
+        --input-border: rgba(151, 166, 188, 0.18);
+        --placeholder: rgba(151, 166, 188, 0.75);
+        --pre-bg: rgba(4, 9, 18, 0.92);
+        --dialog-bg: rgba(10, 16, 29, 0.98);
+        --backdrop-bg: rgba(0, 0, 0, 0.55);
         --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
         --font-size-body: 14px;
         --font-size-small: 12px;
@@ -31,9 +51,69 @@ def _shared_styles() -> str:
         font-size: var(--font-size-body);
         line-height: 1.45;
         background:
-          radial-gradient(circle at top left, rgba(120, 164, 255, 0.14), transparent 30%),
-          radial-gradient(circle at right, rgba(255, 142, 90, 0.16), transparent 28%),
+          radial-gradient(circle at top left, var(--bg-glow-left), transparent 30%),
+          radial-gradient(circle at right, var(--bg-glow-right), transparent 28%),
           linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+      }
+      body[data-theme="dark_green"] {
+        --bg-top: #061610;
+        --bg-bottom: #010806;
+        --surface: rgba(7, 24, 17, 0.84);
+        --surface-strong: rgba(12, 38, 27, 0.93);
+        --ink: #edf7f1;
+        --muted: #9ab7a8;
+        --accent: #41c982;
+        --accent-strong: #1f8f5e;
+        --line: rgba(154, 183, 168, 0.2);
+        --bg-glow-left: rgba(65, 201, 130, 0.16);
+        --bg-glow-right: rgba(153, 199, 120, 0.12);
+        --nav-bg: rgba(3, 18, 12, 0.78);
+        --hero-bg-primary: rgba(4, 21, 14, 0.96);
+        --hero-bg-secondary: rgba(13, 44, 30, 0.94);
+        --hero-accent-bg: rgba(65, 201, 130, 0.18);
+        --hero-cool-bg: rgba(154, 183, 168, 0.08);
+        --hero-ink: #f1fbf5;
+        --hero-muted: rgba(237, 247, 241, 0.78);
+        --soft-bg: rgba(154, 183, 168, 0.12);
+        --soft-bg-strong: rgba(154, 183, 168, 0.14);
+        --chip-bg: rgba(237, 247, 241, 0.06);
+        --chip-border: rgba(237, 247, 241, 0.14);
+        --list-bg: rgba(7, 31, 21, 0.88);
+        --input-bg: rgba(2, 12, 8, 0.9);
+        --input-border: rgba(154, 183, 168, 0.2);
+        --placeholder: rgba(154, 183, 168, 0.75);
+        --pre-bg: rgba(2, 12, 8, 0.92);
+        --dialog-bg: rgba(5, 22, 15, 0.98);
+      }
+      body[data-theme="dark_brown"] {
+        --bg-top: #19100a;
+        --bg-bottom: #090402;
+        --surface: rgba(35, 22, 14, 0.84);
+        --surface-strong: rgba(51, 32, 20, 0.93);
+        --ink: #f7efe7;
+        --muted: #c0a996;
+        --accent: #d18a4f;
+        --accent-strong: #9c5f32;
+        --line: rgba(192, 169, 150, 0.22);
+        --bg-glow-left: rgba(209, 138, 79, 0.14);
+        --bg-glow-right: rgba(173, 119, 74, 0.16);
+        --nav-bg: rgba(27, 15, 8, 0.78);
+        --hero-bg-primary: rgba(28, 15, 8, 0.96);
+        --hero-bg-secondary: rgba(53, 32, 20, 0.94);
+        --hero-accent-bg: rgba(209, 138, 79, 0.2);
+        --hero-cool-bg: rgba(192, 169, 150, 0.08);
+        --hero-ink: #fff5eb;
+        --hero-muted: rgba(247, 239, 231, 0.78);
+        --soft-bg: rgba(192, 169, 150, 0.13);
+        --soft-bg-strong: rgba(192, 169, 150, 0.15);
+        --chip-bg: rgba(247, 239, 231, 0.06);
+        --chip-border: rgba(247, 239, 231, 0.14);
+        --list-bg: rgba(42, 25, 15, 0.88);
+        --input-bg: rgba(16, 8, 4, 0.9);
+        --input-border: rgba(192, 169, 150, 0.22);
+        --placeholder: rgba(192, 169, 150, 0.75);
+        --pre-bg: rgba(16, 8, 4, 0.92);
+        --dialog-bg: rgba(31, 18, 11, 0.98);
       }
       .page {
         width: min(1240px, calc(100vw - 28px));
@@ -47,7 +127,7 @@ def _shared_styles() -> str:
         padding: 14px 18px;
         border-radius: 22px;
         border: 1px solid var(--line);
-        background: rgba(8, 13, 24, 0.72);
+        background: var(--nav-bg);
         backdrop-filter: blur(10px);
         box-shadow: var(--shadow);
       }
@@ -63,7 +143,7 @@ def _shared_styles() -> str:
         border-radius: 999px;
         color: var(--ink);
         text-decoration: none;
-        background: rgba(151, 166, 188, 0.12);
+        background: var(--soft-bg);
       }
       .nav-link[data-active="true"] {
         background: linear-gradient(135deg, var(--accent), var(--accent-strong));
@@ -74,9 +154,9 @@ def _shared_styles() -> str:
         padding: 26px;
         border-radius: 28px;
         background:
-          linear-gradient(135deg, rgba(7, 14, 26, 0.96), rgba(19, 30, 49, 0.94)),
-          linear-gradient(135deg, rgba(255, 142, 90, 0.26), rgba(120, 164, 255, 0.08));
-        color: #f8f4ef;
+          linear-gradient(135deg, var(--hero-bg-primary), var(--hero-bg-secondary)),
+          linear-gradient(135deg, var(--hero-accent-bg), var(--hero-cool-bg));
+        color: var(--hero-ink);
         box-shadow: var(--shadow);
       }
       .hero h1 {
@@ -85,7 +165,7 @@ def _shared_styles() -> str:
         font-size: clamp(34px, 4.8vw, 56px);
         line-height: 0.95;
       }
-      .hero p { margin: 0; max-width: 820px; color: rgba(236, 241, 248, 0.78); }
+      .hero p { margin: 0; max-width: 820px; color: var(--hero-muted); }
       .hero-intro {
         display: flex;
         align-items: center;
@@ -100,8 +180,8 @@ def _shared_styles() -> str:
         align-items: center;
         padding: 7px 12px;
         border-radius: 999px;
-        border: 1px solid rgba(236, 241, 248, 0.14);
-        background: rgba(236, 241, 248, 0.06);
+        border: 1px solid var(--chip-border);
+        background: var(--chip-bg);
         font-size: var(--font-size-ui);
       }
       .layout {
@@ -174,7 +254,7 @@ def _shared_styles() -> str:
       .card-meta { margin-top: 10px; }
       .pronounce-button {
         padding: 6px 10px;
-        background: rgba(151, 166, 188, 0.12);
+        background: var(--soft-bg);
         color: var(--ink);
         flex-shrink: 0;
         font-size: 14px;
@@ -189,8 +269,17 @@ def _shared_styles() -> str:
       .list-item {
         padding: 14px;
         border-radius: 18px;
-        background: rgba(14, 22, 38, 0.88);
+        background: var(--list-bg);
         border: 1px solid var(--line);
+      }
+      .list-item.compact {
+        padding: 10px;
+        border-radius: 12px;
+      }
+      .pending-acknowledgements {
+        display: grid;
+        gap: 8px;
+        margin: 10px 0 12px;
       }
       .field {
         display: grid;
@@ -226,14 +315,14 @@ def _shared_styles() -> str:
         width: 100%;
         padding: 12px 14px;
         border-radius: 14px;
-        border: 1px solid rgba(151, 166, 188, 0.18);
+        border: 1px solid var(--input-border);
         font: inherit;
         color: var(--ink);
-        background: rgba(5, 10, 19, 0.9);
+        background: var(--input-bg);
       }
       input::placeholder,
       textarea::placeholder {
-        color: rgba(151, 166, 188, 0.75);
+        color: var(--placeholder);
       }
       textarea { min-height: 96px; resize: vertical; }
       button {
@@ -249,7 +338,7 @@ def _shared_styles() -> str:
         cursor: pointer;
       }
       button.secondary {
-        background: rgba(151, 166, 188, 0.12);
+        background: var(--soft-bg);
         color: var(--ink);
       }
       .actions { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -262,7 +351,7 @@ def _shared_styles() -> str:
         margin: 0;
         padding: 14px;
         border-radius: 16px;
-        background: rgba(4, 9, 18, 0.92);
+        background: var(--pre-bg);
         overflow: auto;
         white-space: pre-wrap;
       }
@@ -270,8 +359,38 @@ def _shared_styles() -> str:
         display: inline-flex;
         padding: 4px 10px;
         border-radius: 999px;
-        background: rgba(151, 166, 188, 0.12);
+        background: var(--soft-bg);
         font-size: var(--font-size-small);
+      }
+      .notification {
+        display: grid;
+        gap: 4px;
+        margin: 0 0 14px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--soft-bg);
+      }
+      .notification[hidden] {
+        display: none;
+      }
+      .notification strong {
+        font-size: var(--font-size-ui);
+      }
+      .notification p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .notification[data-kind="error"] {
+        border-color: rgba(255, 142, 90, 0.5);
+        background: rgba(255, 142, 90, 0.12);
+      }
+      .notification[data-kind="success"] {
+        border-color: rgba(65, 201, 130, 0.42);
+        background: rgba(65, 201, 130, 0.1);
+      }
+      .persistent-notice {
+        margin: 0;
       }
       .run-progress {
         display: grid;
@@ -291,7 +410,7 @@ def _shared_styles() -> str:
         height: 6px;
         overflow: hidden;
         border-radius: 999px;
-        background: rgba(151, 166, 188, 0.14);
+        background: var(--soft-bg-strong);
       }
       .run-progress-bar::after {
         content: "";
@@ -322,11 +441,11 @@ def _shared_styles() -> str:
         border: 1px solid var(--line);
         border-radius: 24px;
         padding: 0;
-        background: rgba(10, 16, 29, 0.98);
+        background: var(--dialog-bg);
         box-shadow: var(--shadow);
       }
       dialog.help-dialog::backdrop {
-        background: rgba(0, 0, 0, 0.55);
+        background: var(--backdrop-bg);
       }
       .help-dialog-body {
         padding: 22px;
@@ -354,7 +473,8 @@ def _shared_styles() -> str:
     """
 
 
-def _shell(title: str, navigation_active: str, body: str, *, settings_json: str) -> str:
+def _shell(title: str, navigation_active: str, body: str, *, settings_json: str, ui_theme: str) -> str:
+    theme = ui_theme if ui_theme in {"dark", "dark_green", "dark_brown"} else "dark"
     html = f"""<!doctype html>
 <html lang="en">
   <head>
@@ -365,12 +485,13 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
 {_shared_styles()}
     </style>
   </head>
-  <body>
+  <body data-theme="{_escape_html(theme)}">
     <main class="page">
       <nav class="nav">
         <div class="nav-links">
           <a class="nav-link" data-active="{str(navigation_active == 'dashboard').lower()}" href="/">Dashboard</a>
           <a class="nav-link" data-active="{str(navigation_active == 'templates').lower()}" href="/templates">Templates</a>
+          <a class="nav-link" data-active="{str(navigation_active == 'settings').lower()}" href="/settings">Settings</a>
         </div>
       </nav>
       <script>
@@ -510,7 +631,14 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
         }});
         if (!response.ok) {{
           const text = await response.text();
-          throw new Error(text || `Request failed: ${{response.status}}`);
+          let message = text || `Request failed: ${{response.status}}`;
+          try {{
+            const payload = JSON.parse(text);
+            message = payload?.detail || message;
+          }} catch {{
+            // Keep the raw response text for non-JSON errors.
+          }}
+          throw new Error(message);
         }}
         return response.json();
       }}
@@ -689,7 +817,7 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
         );
       }}
 
-      function selectSpeechVoice(preferredLocales) {{
+      function selectSpeechVoice(preferredLocales, preferredVoiceUri = "") {{
         if (!Array.isArray(preferredLocales) || !preferredLocales.length || !speechSupported()) {{
           return null;
         }}
@@ -697,9 +825,9 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
         if (!voices.length) {{
           return null;
         }}
-        const preferredVoiceUri = String(state?.settings?.preferred_speech_voice_uri || "").trim();
-        if (preferredVoiceUri) {{
-          const selectedVoice = voices.find((voice) => voice.voiceURI === preferredVoiceUri);
+        const selectedVoiceUri = String(preferredVoiceUri || "").trim();
+        if (selectedVoiceUri) {{
+          const selectedVoice = voices.find((voice) => voice.voiceURI === selectedVoiceUri);
           if (selectedVoice) {{
             return selectedVoice;
           }}
@@ -730,9 +858,10 @@ def _shell(title: str, navigation_active: str, body: str, *, settings_json: str)
           .split(",")
           .map((value) => value.trim())
           .filter(Boolean);
+        const preferredVoiceUri = String(button.dataset.voiceUri || "").trim();
         if (preferredLocales.length) {{
           utterance.lang = preferredLocales[0];
-          const preferredVoice = selectSpeechVoice(preferredLocales);
+          const preferredVoice = selectSpeechVoice(preferredLocales, preferredVoiceUri);
           if (preferredVoice) {{
             utterance.voice = preferredVoice;
             utterance.lang = preferredVoice.lang;
@@ -802,53 +931,39 @@ def _provider_options_markup(settings: SettingsRecord) -> str:
     )
 
 
+def _theme_options_markup(settings: SettingsRecord) -> str:
+    labels = {
+        "dark": "Dark",
+        "dark_green": "Dark Green",
+        "dark_brown": "Dark Brown",
+    }
+    return "".join(
+        f'<option value="{_escape_html(theme)}"{(" selected" if theme == settings.ui_theme else "")}>{_escape_html(label)}</option>'
+        for theme, label in labels.items()
+    )
+
+
 def render_dashboard(settings: SettingsRecord) -> str:
     settings_json = json.dumps(settings.model_dump())
-    model_options_markup = _model_options_markup(settings)
-    provider_options_markup = _provider_options_markup(settings)
     body = """
       <section class="hero">
         <h1>Prompt Study Notifier</h1>
         <div class="hero-intro">
           <p>Schedule reusable prompts, generate structured study sessions, and let the open browser tab refresh itself when new material arrives.</p>
-          <button id="toggleRuntimeButton" class="secondary" type="button">Expand Runtime</button>
-        </div>
-        <div id="runtimePanelContent">
-          <div class="hero-actions" style="margin-top:16px;">
-            <span class="chip" id="connectionStatus">Connecting…</span>
-            <span class="chip" id="runtimeInfo"></span>
-          </div>
-          <form id="modelForm" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
-            <label class="field" style="margin:0; min-width:170px;">
-              <span class="field-label">AI Provider</span>
-              <select id="providerInput" name="active_ai_provider">__PROVIDER_OPTIONS__</select>
-            </label>
-            <label class="field" style="margin:0; min-width:220px;">
-              <span class="field-label">Model</span>
-              <select id="modelInput" name="active_model">__MODEL_OPTIONS__</select>
-            </label>
-            <label class="field" style="margin:0; min-width:280px;">
-              <span class="field-label">Preferred Voice</span>
-              <select id="speechVoiceInput" name="preferred_speech_voice_uri">
-                <option value="">Automatic voice</option>
-              </select>
-            </label>
-            <div class="field" id="browserNotificationField" style="margin:0; min-width:240px;">
-              <span class="field-label">Browser Notifications</span>
-              <div class="actions" style="align-items:center;">
-                <button id="enableNotificationsButton" class="secondary" type="button">Enable Notifications</button>
-                <span id="notificationPermissionStatus" class="muted"></span>
-              </div>
-            </div>
-            <button type="submit">Save Settings</button>
-            <span id="settingsSaveStatus" class="muted" aria-live="polite"></span>
-            <span id="modelLoadStatus" class="muted" aria-live="polite"></span>
-          </form>
         </div>
       </section>
 
       <section class="layout layout-dashboard" id="dashboardLayout">
         <div class="column">
+          <div id="newSessionsNotice" class="notification persistent-notice" data-kind="success" role="status" aria-live="polite" hidden>
+            <strong id="newSessionsNoticeTitle"></strong>
+            <p id="newSessionsNoticeMessage"></p>
+            <div class="actions">
+              <button type="button" id="openNewestSessionButton">Open Newest</button>
+              <button class="secondary" type="button" id="clearNewSessionsNoticeButton">Dismiss</button>
+            </div>
+          </div>
+
           <section class="panel">
             <h2>Latest Result</h2>
             <div id="latestResult">
@@ -865,6 +980,12 @@ def render_dashboard(settings: SettingsRecord) -> str:
               </div>
             </div>
             <div id="historyPanelContent">
+              <label class="field">
+                <span class="field-label">Schedule</span>
+                <select id="historyScheduleFilter">
+                  <option value="">All schedules</option>
+                </select>
+              </label>
               <div id="historyList" class="list">
                 <p class="muted">No sessions yet.</p>
               </div>
@@ -876,14 +997,14 @@ def render_dashboard(settings: SettingsRecord) -> str:
           <section class="panel" id="schedulesPanel">
             <div class="actions" style="justify-content:space-between; align-items:center; margin-bottom:14px;">
               <h2 style="margin:0;">Schedules</h2>
-              <button id="toggleSchedulesButton" class="secondary" type="button">Collapse</button>
+              <button id="toggleSchedulesButton" class="secondary" type="button">Hide</button>
             </div>
             <div id="schedulesPanelContent">
               <div class="actions" style="justify-content:space-between; align-items:center; margin-bottom:14px;">
                 <h2 style="margin:0;">Schedule Editor</h2>
-                <button id="toggleScheduleEditorButton" class="secondary" type="button">Collapse</button>
+                <button id="toggleScheduleEditorButton" class="secondary" type="button" data-collapsed="true">Expand</button>
               </div>
-              <div id="scheduleEditorContent">
+              <div id="scheduleEditorContent" style="display:none;">
                 <form id="scheduleForm">
                   <input type="hidden" name="schedule_id">
                   <label class="field">
@@ -918,6 +1039,12 @@ def render_dashboard(settings: SettingsRecord) -> str:
                   <label class="field">
                     <span class="field-label">Timezone</span>
                     <input name="timezone" value="Europe/Belgrade" required>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Preferred Voice</span>
+                    <select name="preferred_speech_voice_uri">
+                      <option value="">Automatic voice</option>
+                    </select>
                   </label>
                   <label class="field">
                     <span class="field-heading">
@@ -955,39 +1082,36 @@ def render_dashboard(settings: SettingsRecord) -> str:
           manualRunsInFlight: [],
           manualRunStartedAt: {},
           collapsedScheduleIds: {},
+          unseenSessionIds: [],
           selectedSessionId: null,
+          historyScheduleId: null,
         };
         const latestResultEl = document.getElementById("latestResult");
+        const newSessionsNoticeEl = document.getElementById("newSessionsNotice");
+        const newSessionsNoticeTitleEl = document.getElementById("newSessionsNoticeTitle");
+        const newSessionsNoticeMessageEl = document.getElementById("newSessionsNoticeMessage");
+        const openNewestSessionButton = document.getElementById("openNewestSessionButton");
+        const clearNewSessionsNoticeButton = document.getElementById("clearNewSessionsNoticeButton");
         const dashboardLayoutEl = document.getElementById("dashboardLayout");
+        const historyScheduleFilterEl = document.getElementById("historyScheduleFilter");
         const historyListEl = document.getElementById("historyList");
         const historyPanelContentEl = document.getElementById("historyPanelContent");
         const schedulesListEl = document.getElementById("schedulesList");
         const schedulesPanelContentEl = document.getElementById("schedulesPanelContent");
         const scheduleEditorContentEl = document.getElementById("scheduleEditorContent");
         const scheduleForm = document.getElementById("scheduleForm");
-        const connectionStatus = document.getElementById("connectionStatus");
-        const runtimeInfo = document.getElementById("runtimeInfo");
-        const modelForm = document.getElementById("modelForm");
-        const providerInput = document.getElementById("providerInput");
-        const modelInput = document.getElementById("modelInput");
-        const speechVoiceInput = document.getElementById("speechVoiceInput");
-        const settingsSaveStatus = document.getElementById("settingsSaveStatus");
-        const modelLoadStatus = document.getElementById("modelLoadStatus");
-        const runtimePanelContentEl = document.getElementById("runtimePanelContent");
+        const scheduleVoiceInput = scheduleForm.elements.preferred_speech_voice_uri;
         const saveScheduleButton = document.getElementById("saveScheduleButton");
         const cancelScheduleEditButton = document.getElementById("cancelScheduleEditButton");
-        const toggleRuntimeButton = document.getElementById("toggleRuntimeButton");
         const toggleHistoryButton = document.getElementById("toggleHistoryButton");
         const toggleSchedulesButton = document.getElementById("toggleSchedulesButton");
         const toggleScheduleEditorButton = document.getElementById("toggleScheduleEditorButton");
         const clearHistoryButton = document.getElementById("clearHistoryButton");
-        const browserNotificationField = document.getElementById("browserNotificationField");
-        const enableNotificationsButton = document.getElementById("enableNotificationsButton");
-        const notificationPermissionStatus = document.getElementById("notificationPermissionStatus");
         let liveSocket = null;
         let liveReconnectTimer = null;
         let liveConnectTimeout = null;
         let manualRunTicker = null;
+        let latestBrowserNotification = null;
 
         function voiceLabel(voice) {
           const language = String(voice?.lang || "").trim();
@@ -1004,8 +1128,10 @@ def render_dashboard(settings: SettingsRecord) -> str:
           });
         }
 
-        function renderSpeechVoiceOptions() {
-          const selectedVoiceUri = String(state.settings.preferred_speech_voice_uri || "").trim();
+        function renderScheduleVoiceOptions() {
+          const editingScheduleId = Number(scheduleForm.elements.schedule_id.value || 0);
+          const editingSchedule = state.schedules.find((schedule) => schedule.id === editingScheduleId);
+          const selectedVoiceUri = String(scheduleVoiceInput.value || editingSchedule?.preferred_speech_voice_uri || "").trim();
           const voices = getAvailableSpeechVoices();
           const options = ['<option value="">Automatic voice</option>'];
           for (const voice of voices) {
@@ -1013,76 +1139,13 @@ def render_dashboard(settings: SettingsRecord) -> str:
             if (!voiceUri) {
               continue;
             }
-            options.push(`
-              <option value="${escapeHtml(voiceUri)}">${escapeHtml(voiceLabel(voice))}</option>
-            `);
+            options.push(`<option value="${escapeHtml(voiceUri)}">${escapeHtml(voiceLabel(voice))}</option>`);
           }
-          speechVoiceInput.innerHTML = options.join("");
-          speechVoiceInput.disabled = !speechSupported() || !voices.length;
-          speechVoiceInput.value = selectedVoiceUri && voices.some((voice) => voice.voiceURI === selectedVoiceUri)
+          scheduleVoiceInput.innerHTML = options.join("");
+          scheduleVoiceInput.disabled = !speechSupported() || !voices.length;
+          scheduleVoiceInput.value = selectedVoiceUri && voices.some((voice) => voice.voiceURI === selectedVoiceUri)
             ? selectedVoiceUri
             : "";
-        }
-
-        function renderRuntimeInfo() {
-          runtimeInfo.textContent = `${state.settings.active_ai_provider}:${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
-          providerInput.innerHTML = (state.settings.available_ai_providers || []).map((provider) => `
-            <option value="${escapeHtml(provider)}">${escapeHtml(provider.charAt(0).toUpperCase() + provider.slice(1))}</option>
-          `).join("");
-          providerInput.value = state.settings.active_ai_provider;
-          const providerModels = (state.settings.available_models_by_provider || {})[providerInput.value] || state.settings.available_models || [];
-          modelInput.innerHTML = providerModels.map((model) => `
-            <option value="${escapeHtml(model)}">${escapeHtml(model)}</option>
-          `).join("");
-          modelInput.value = state.settings.active_model;
-          renderSpeechVoiceOptions();
-        }
-
-        async function refreshProviderModels(provider) {
-          modelLoadStatus.textContent = "Loading models...";
-          const result = await fetchJson(`/api/settings/models?provider=${encodeURIComponent(provider)}`);
-          state.settings.available_models_by_provider = {
-            ...(state.settings.available_models_by_provider || {}),
-            [provider]: result.models || [],
-          };
-          if (provider === state.settings.active_ai_provider) {
-            state.settings.available_models = result.models || [];
-            if (!state.settings.available_models.includes(state.settings.active_model)) {
-              state.settings.active_model = state.settings.available_models[0] || "";
-            }
-          }
-          renderRuntimeInfo();
-          modelLoadStatus.textContent = result.source === "live"
-            ? `Loaded ${(result.models || []).length} models.`
-            : (result.detail || "Using configured fallback models.");
-        }
-
-        function renderNotificationPermission() {
-          if (!browserNotificationField || !enableNotificationsButton || !notificationPermissionStatus) {
-            return;
-          }
-          browserNotificationField.style.display = "";
-          enableNotificationsButton.style.display = "none";
-          notificationPermissionStatus.textContent = "";
-          if (!("Notification" in window)) {
-            notificationPermissionStatus.textContent = "Not supported in this browser.";
-            return;
-          }
-          if (Notification.permission === "granted") {
-            browserNotificationField.style.display = "none";
-            return;
-          }
-          if (Notification.permission === "denied") {
-            notificationPermissionStatus.textContent = "Blocked in browser settings.";
-            return;
-          }
-          enableNotificationsButton.style.display = "";
-        }
-
-        function setRuntimeCollapsed(collapsed) {
-          runtimePanelContentEl.style.display = collapsed ? "none" : "";
-          toggleRuntimeButton.textContent = collapsed ? "Expand Runtime" : "Collapse Runtime";
-          toggleRuntimeButton.dataset.collapsed = collapsed ? "true" : "false";
         }
 
         function getPendingAcknowledgementSessions() {
@@ -1118,10 +1181,88 @@ def render_dashboard(settings: SettingsRecord) -> str:
           return getPendingAcknowledgementSessions().filter((session) => session.id !== activeSession.id);
         }
 
+        function getPendingAcknowledgementSessionsForSchedule(scheduleId) {
+          return getPendingAcknowledgementSessions().filter((session) => session.schedule_id === scheduleId);
+        }
+
+        function getUnseenSessions() {
+          const unseenIds = new Set(state.unseenSessionIds);
+          return state.sessions
+            .filter((session) => unseenIds.has(session.id) && session.status === "success" && session.render_payload)
+            .sort((left, right) => {
+              const timeCompare = new Date(right.generated_at).getTime() - new Date(left.generated_at).getTime();
+              if (timeCompare !== 0) {
+                return timeCompare;
+              }
+              return right.id - left.id;
+            });
+        }
+
+        function markSessionSeen(sessionId) {
+          state.unseenSessionIds = state.unseenSessionIds.filter((id) => id !== sessionId);
+          renderNewSessionsNotice();
+        }
+
+        function upsertSession(session) {
+          state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)];
+        }
+
+        function upsertSchedule(schedule) {
+          state.schedules = state.schedules.some((item) => item.id === schedule.id)
+            ? state.schedules.map((item) => item.id === schedule.id ? schedule : item)
+            : [schedule, ...state.schedules];
+        }
+
+        function getHistorySessions() {
+          if (state.historyScheduleId === null) {
+            return state.sessions;
+          }
+          return state.sessions.filter((session) => session.schedule_id === state.historyScheduleId);
+        }
+
+        function renderHistoryScheduleFilter() {
+          const selectedId = state.historyScheduleId;
+          const knownScheduleIds = new Set(state.schedules.map((schedule) => schedule.id));
+          if (selectedId !== null && !knownScheduleIds.has(selectedId)) {
+            state.historyScheduleId = null;
+          }
+          historyScheduleFilterEl.innerHTML = [
+            '<option value="">All schedules</option>',
+            ...state.schedules.map((schedule) => `
+              <option value="${schedule.id}">${escapeHtml(schedule.name)}</option>
+            `),
+          ].join("");
+          historyScheduleFilterEl.value = state.historyScheduleId === null ? "" : String(state.historyScheduleId);
+        }
+
+        function markAllSessionsSeen() {
+          state.unseenSessionIds = [];
+          renderNewSessionsNotice();
+        }
+
+        function renderNewSessionsNotice() {
+          const unseenSessions = getUnseenSessions();
+          if (!unseenSessions.length) {
+            newSessionsNoticeEl.hidden = true;
+            newSessionsNoticeTitleEl.textContent = "";
+            newSessionsNoticeMessageEl.textContent = "";
+            return;
+          }
+          const newest = unseenSessions[0];
+          newSessionsNoticeTitleEl.textContent = unseenSessions.length === 1
+            ? "1 new card generated"
+            : `${unseenSessions.length} new cards generated`;
+          newSessionsNoticeMessageEl.textContent = `${getSessionDisplayTitle(newest)} at ${formatDateTime(newest.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone)}`;
+          newSessionsNoticeEl.hidden = false;
+        }
+
         function getDisplayLevel(session, item) {
-          const difficulty = session?.prompt_snapshot?.variables?.difficulty;
-          if (typeof difficulty === "string" && difficulty.trim()) {
-            return difficulty.trim();
+          const variables = session?.prompt_snapshot?.variables || {};
+          for (const key of ["difficulty", "level"]) {
+            const level = variables[key];
+            if (typeof level === "string" && level.trim()) {
+              return level.trim();
+            }
           }
           const cefrTag = (item?.tags || []).find((tag) => /^(A1|A2|B1|B2|C1|C2)$/i.test(String(tag).trim()));
           return cefrTag ? String(cefrTag).trim().toUpperCase() : null;
@@ -1148,6 +1289,14 @@ def render_dashboard(settings: SettingsRecord) -> str:
             return scheduleName.trim();
           }
           return session?.render_payload?.title || session?.error_text || "Untitled session";
+        }
+
+        function getSessionGeneratedTitle(session) {
+          const title = session?.render_payload?.title || session?.title;
+          if (typeof title === "string" && title.trim()) {
+            return title.trim();
+          }
+          return session?.error_text || "Untitled session";
         }
 
         function getLevelTags(session, item) {
@@ -1193,8 +1342,21 @@ def render_dashboard(settings: SettingsRecord) -> str:
         }
 
         function syncSelectedSession() {
+          if (state.selectedSessionId !== null) {
+            const selected = state.sessions.find((session) => session.id === state.selectedSessionId);
+            if (selected) {
+              return;
+            }
+          }
           const activeSession = getActiveSession();
           state.selectedSessionId = activeSession ? activeSession.id : null;
+        }
+
+        function selectAfterAcknowledgement(acknowledgedSessionId) {
+          const pendingSessions = getPendingAcknowledgementSessions();
+          state.selectedSessionId = pendingSessions.length
+            ? pendingSessions[pendingSessions.length - 1].id
+            : acknowledgedSessionId;
         }
 
         function renderLatest() {
@@ -1215,13 +1377,18 @@ def render_dashboard(settings: SettingsRecord) -> str:
           const targetLanguage = detectTargetLanguage(latest);
           const speechLocales = getSpeechLocales(targetLanguage).join(",");
           const scheduleId = latest.schedule_id;
+          const schedule = state.schedules.find((item) => item.id === scheduleId);
+          const preferredVoiceUri = schedule?.preferred_speech_voice_uri || "";
+          const nextRunText = schedule?.next_run_at
+            ? ` | next card: ${escapeHtml(formatDateTime(schedule.next_run_at, schedule.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone))}`
+            : "";
           const manualRunInFlight = scheduleId != null && state.manualRunsInFlight.includes(scheduleId);
           const cards = payload.items.map((item) => `
             <article class="card">
               <div class="card-header">
                 <h3>${escapeHtml(formatDisplayTerm(item.term))}</h3>
                 <div class="actions">
-                  <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.term || "")}" data-lang="${escapeHtml(speechLocales)}" title="Pronounce term">
+                  <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.term || "")}" data-lang="${escapeHtml(speechLocales)}" data-voice-uri="${escapeHtml(preferredVoiceUri)}" title="Pronounce term">
                     🔊
                   </button>
                 </div>
@@ -1230,7 +1397,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
               <p><strong>Explanation:</strong> ${escapeHtml(item.explanation || "-")}</p>
               <div class="inline-row">
                 <p><strong>Example:</strong> ${escapeHtml(item.example_source || "-")}</p>
-                <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.example_source || "")}" data-lang="${escapeHtml(speechLocales)}" title="Pronounce example">
+                <button class="secondary pronounce-button" type="button" data-pronounce-text="${escapeHtml(item.example_source || "")}" data-lang="${escapeHtml(speechLocales)}" data-voice-uri="${escapeHtml(preferredVoiceUri)}" title="Pronounce example">
                   🔊
                 </button>
               </div>
@@ -1241,7 +1408,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           const level = payload.items.length ? getDisplayLevel(latest, payload.items[0]) : null;
           latestResultEl.innerHTML = `
             <h3 class="result-title">${escapeHtml(getSessionDisplayTitle(latest))}</h3>
-            <p class="result-meta">${escapeHtml(formatDateTime(latest.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}${latest.generation_seconds != null ? ` | generated in ${escapeHtml(formatGenerationDuration(latest.generation_seconds))}` : ""}</p>
+            <p class="result-meta">${escapeHtml(formatDateTime(latest.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}${latest.generation_seconds != null ? ` | generated in ${escapeHtml(formatGenerationDuration(latest.generation_seconds))}` : ""}${nextRunText}</p>
             <div class="actions" style="margin-bottom:12px;">
               ${!latest.acknowledged_at ? `<button type="button" data-acknowledge-session-id="${latest.id}">Acknowledge</button>` : ""}
               ${scheduleId != null ? `<button class="secondary" type="button" data-generate-card-schedule-id="${scheduleId}" data-generate-card-session-id="${latest.id}" ${manualRunInFlight ? 'disabled aria-busy="true"' : ""}>${manualRunInFlight ? "Generating..." : "Generate New Card"}</button>` : ""}
@@ -1262,11 +1429,18 @@ def render_dashboard(settings: SettingsRecord) -> str:
         }
 
         function renderHistory() {
+          renderHistoryScheduleFilter();
+          const historySessions = getHistorySessions();
           if (!state.sessions.length) {
             historyListEl.innerHTML = '<p class="muted">No sessions yet.</p>';
             return;
           }
-          historyListEl.innerHTML = state.sessions.map((session) => `
+          if (!historySessions.length) {
+            const schedule = state.schedules.find((item) => item.id === state.historyScheduleId);
+            historyListEl.innerHTML = `<p class="muted">No sessions for ${escapeHtml(schedule?.name || "this schedule")} yet.</p>`;
+            return;
+          }
+          historyListEl.innerHTML = historySessions.map((session) => `
             <article class="list-item">
               <div class="actions">
                 <span class="status">${escapeHtml(session.status)}</span>
@@ -1275,7 +1449,8 @@ def render_dashboard(settings: SettingsRecord) -> str:
                 <button class="secondary" type="button" data-session-id="${session.id}">Open</button>
                 <button class="secondary" type="button" data-delete-session-id="${session.id}">Remove</button>
               </div>
-              <p><strong>${escapeHtml(getSessionDisplayTitle(session))}</strong></p>
+              <p><strong>${escapeHtml(getSessionGeneratedTitle(session))}</strong></p>
+              <p class="muted">${escapeHtml(getSessionDisplayTitle(session))}</p>
               <p class="muted">${escapeHtml(formatDateTime(session.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}</p>
             </article>
           `).join("");
@@ -1287,39 +1462,56 @@ def render_dashboard(settings: SettingsRecord) -> str:
           select.innerHTML = state.templates.map((template) => `
             <option value="${template.id}">${escapeHtml(template.name)}</option>
           `).join("");
-          schedulesListEl.innerHTML = state.schedules.map((schedule) => `
-            <article class="list-item">
-              <div class="card-header">
-                <p><strong>${escapeHtml(schedule.name)}</strong></p>
-                <button
-                  class="secondary"
-                  type="button"
-                  data-collapse-schedule-id="${schedule.id}"
-                  data-collapsed="${state.collapsedScheduleIds[schedule.id] ? "true" : "false"}"
-                >${state.collapsedScheduleIds[schedule.id] ? "Expand" : "Collapse"}</button>
+          schedulesListEl.innerHTML = state.schedules.map((schedule) => {
+            const pendingSessions = getPendingAcknowledgementSessionsForSchedule(schedule.id);
+            const pendingMarkup = pendingSessions.length ? `
+              <div class="pending-acknowledgements">
+                ${pendingSessions.map((session) => `
+                  <article class="list-item compact">
+                    <p><strong>${escapeHtml(getSessionDisplayTitle(session))}</strong></p>
+                    <p class="muted">${escapeHtml(formatDateTime(session.generated_at, Intl.DateTimeFormat().resolvedOptions().timeZone))}</p>
+                    <div class="actions">
+                      <button type="button" data-open-pending-session-id="${session.id}">Open</button>
+                      ${!schedule.telegram_enabled ? `<button class="secondary" type="button" data-acknowledge-session-id="${session.id}">Acknowledge</button>` : ""}
+                    </div>
+                  </article>
+                `).join("")}
               </div>
-              ${state.collapsedScheduleIds[schedule.id] ? "" : `
-                <p class="muted">${escapeHtml(formatIntervalMinutes(schedule.interval_minutes))} | next: ${escapeHtml(formatDateTime(schedule.next_run_at, schedule.timezone))}${schedule.timezone ? ` (${escapeHtml(schedule.timezone)})` : ""}</p>
-                ${schedule.awaiting_acknowledgement ? `<p class="muted">${schedule.telegram_enabled ? `Unreviewed cards: ${schedule.pending_acknowledgement_count}` : `Waiting for acknowledgement (${schedule.pending_acknowledgement_count})`}</p>` : ""}
-                <div class="actions">
-                  <span class="status">${schedule.is_active ? "active" : "paused"}</span>
-                  ${schedule.awaiting_acknowledgement && !schedule.telegram_enabled ? '<span class="status">blocked</span>' : ""}
-                  ${schedule.telegram_enabled ? '<span class="status">telegram</span>' : ""}
-                  <button class="secondary" type="button" data-edit-schedule-id="${schedule.id}">Edit</button>
-                  <button class="secondary" type="button" data-toggle-schedule-id="${schedule.id}">${schedule.is_active ? "Pause" : "Resume"}</button>
-                  <button class="secondary" type="button" data-delete-schedule-id="${schedule.id}">Delete</button>
-                  <button class="secondary" type="button" data-run-now="${schedule.id}" ${state.manualRunsInFlight.includes(schedule.id) ? 'disabled aria-busy="true"' : ""}>${state.manualRunsInFlight.includes(schedule.id) ? "Running..." : "Run Now"}</button>
+            ` : "";
+            return `
+              <article class="list-item">
+                <div class="card-header">
+                  <p><strong>${escapeHtml(schedule.name)}</strong></p>
+                  <button
+                    class="secondary"
+                    type="button"
+                    data-collapse-schedule-id="${schedule.id}"
+                    data-collapsed="${state.collapsedScheduleIds[schedule.id] ? "true" : "false"}"
+                  >${state.collapsedScheduleIds[schedule.id] ? "Expand" : "Collapse"}</button>
                 </div>
-                ${state.manualRunsInFlight.includes(schedule.id) ? `
-                  <div class="run-progress" aria-live="polite">
-                    <div class="run-progress-label">Generating study session...</div>
-                    <div class="run-progress-bar" role="progressbar" aria-label="Generating study session"></div>
-                    <div class="run-progress-time">Elapsed: ${escapeHtml(getManualRunElapsed(schedule.id) || "0s")}</div>
+                ${state.collapsedScheduleIds[schedule.id] ? "" : `
+                  <p class="muted">${escapeHtml(formatIntervalMinutes(schedule.interval_minutes))} | next: ${escapeHtml(formatDateTime(schedule.next_run_at, schedule.timezone))}${schedule.timezone ? ` (${escapeHtml(schedule.timezone)})` : ""}</p>
+                  ${schedule.awaiting_acknowledgement ? `<p class="muted">${schedule.telegram_enabled ? `Unreviewed cards: ${schedule.pending_acknowledgement_count}` : `Waiting for acknowledgement (${schedule.pending_acknowledgement_count})`}</p>${pendingMarkup}` : ""}
+                  <div class="actions">
+                    <span class="status">${schedule.is_active ? "active" : "paused"}</span>
+                    ${schedule.awaiting_acknowledgement && !schedule.telegram_enabled ? '<span class="status">blocked</span>' : ""}
+                    ${schedule.telegram_enabled ? '<span class="status">telegram</span>' : ""}
+                    <button class="secondary" type="button" data-edit-schedule-id="${schedule.id}">Edit</button>
+                    <button class="secondary" type="button" data-toggle-schedule-id="${schedule.id}">${schedule.is_active ? "Pause" : "Resume"}</button>
+                    <button class="secondary" type="button" data-delete-schedule-id="${schedule.id}">Delete</button>
+                    <button class="secondary" type="button" data-run-now="${schedule.id}" ${state.manualRunsInFlight.includes(schedule.id) ? 'disabled aria-busy="true"' : ""}>${state.manualRunsInFlight.includes(schedule.id) ? "Running..." : "Run Now"}</button>
                   </div>
-                ` : ""}
-              `}
-            </article>
-          `).join("") || '<p class="muted">No schedules yet.</p>';
+                  ${state.manualRunsInFlight.includes(schedule.id) ? `
+                    <div class="run-progress" aria-live="polite">
+                      <div class="run-progress-label">Generating study session...</div>
+                      <div class="run-progress-bar" role="progressbar" aria-label="Generating study session"></div>
+                      <div class="run-progress-time">Elapsed: ${escapeHtml(getManualRunElapsed(schedule.id) || "0s")}</div>
+                    </div>
+                  ` : ""}
+                `}
+              </article>
+            `;
+          }).join("") || '<p class="muted">No schedules yet.</p>';
         }
 
         function setManualRunInFlight(scheduleId, inFlight) {
@@ -1355,23 +1547,37 @@ def render_dashboard(settings: SettingsRecord) -> str:
           const currentSession = state.sessions.find((item) => item.id === sessionId);
           if (currentSession && !currentSession.acknowledged_at) {
             const response = await fetchJson(`/api/sessions/${sessionId}/acknowledge`, { method: "POST" });
-            state.sessions = state.sessions.map((item) => item.id === response.session.id ? response.session : item);
-            state.schedules = state.schedules.map((item) => item.id === response.schedule.id ? response.schedule : item);
-            if (state.selectedSessionId === response.session.id) {
-              state.selectedSessionId = null;
-            }
+            upsertSession(response.session);
+            upsertSchedule(response.schedule);
+            markSessionSeen(response.session.id);
           }
           await runScheduleNow(scheduleId);
         }
 
         async function acknowledgeSession(sessionId) {
+          const activeSession = getActiveSession();
+          const wasDisplayed = activeSession?.id === sessionId;
           const response = await fetchJson(`/api/sessions/${sessionId}/acknowledge`, { method: "POST" });
-          state.sessions = state.sessions.map((item) => item.id === response.session.id ? response.session : item);
-          state.schedules = state.schedules.map((item) => item.id === response.schedule.id ? response.schedule : item);
-          if (state.selectedSessionId === response.session.id) {
-            state.selectedSessionId = null;
+          upsertSession(response.session);
+          upsertSchedule(response.schedule);
+          markSessionSeen(response.session.id);
+          if (wasDisplayed) {
+            selectAfterAcknowledgement(response.session.id);
+          } else {
+            syncSelectedSession();
           }
-          syncSelectedSession();
+          await loadAll();
+          renderHistory();
+          renderSchedules();
+          renderLatest();
+        }
+
+        async function openSessionInLatest(sessionId) {
+          const session = await fetchJson(`/api/sessions/${sessionId}`);
+          upsertSession(session);
+          state.selectedSessionId = session.id;
+          markSessionSeen(session.id);
+          setHistoryCollapsed(false);
           renderHistory();
           renderSchedules();
           renderLatest();
@@ -1383,11 +1589,15 @@ def render_dashboard(settings: SettingsRecord) -> str:
           toggleHistoryButton.dataset.collapsed = collapsed ? "true" : "false";
         }
 
-        function setSchedulesCollapsed(collapsed) {
+        function setSchedulesCollapsed(collapsed, collapseEditorOnShow = true) {
+          const wasCollapsed = toggleSchedulesButton.dataset.collapsed === "true";
           schedulesPanelContentEl.style.display = collapsed ? "none" : "";
-          toggleSchedulesButton.textContent = collapsed ? "Expand" : "Collapse";
+          toggleSchedulesButton.textContent = collapsed ? "Show" : "Hide";
           toggleSchedulesButton.dataset.collapsed = collapsed ? "true" : "false";
           dashboardLayoutEl.classList.toggle("schedules-collapsed", collapsed);
+          if (!collapsed && wasCollapsed && collapseEditorOnShow) {
+            setScheduleEditorCollapsed(true);
+          }
         }
 
         function setScheduleEditorCollapsed(collapsed) {
@@ -1402,6 +1612,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           scheduleForm.elements.interval_value.value = "1";
           scheduleForm.elements.interval_unit.value = "hours";
           scheduleForm.elements.timezone.value = "Europe/Belgrade";
+          scheduleForm.elements.preferred_speech_voice_uri.value = "";
           scheduleForm.elements.is_active.checked = true;
           scheduleForm.elements.notification_enabled.checked = true;
           scheduleForm.elements.telegram_enabled.checked = false;
@@ -1421,13 +1632,15 @@ def render_dashboard(settings: SettingsRecord) -> str:
           scheduleForm.elements.interval_value.value = String(intervalParts.value);
           scheduleForm.elements.interval_unit.value = intervalParts.unit;
           scheduleForm.elements.timezone.value = schedule.timezone || "Europe/Belgrade";
+          scheduleForm.elements.preferred_speech_voice_uri.value = schedule.preferred_speech_voice_uri || "";
+          renderScheduleVoiceOptions();
           scheduleForm.elements.variables.value = JSON.stringify(schedule.variables || {}, null, 2);
           scheduleForm.elements.is_active.checked = Boolean(schedule.is_active);
           scheduleForm.elements.notification_enabled.checked = Boolean(schedule.notification_enabled);
           scheduleForm.elements.telegram_enabled.checked = Boolean(schedule.telegram_enabled);
           saveScheduleButton.textContent = "Update Schedule";
           cancelScheduleEditButton.style.display = "";
-          setSchedulesCollapsed(false);
+          setSchedulesCollapsed(false, false);
           setScheduleEditorCollapsed(false);
           scheduleForm.scrollIntoView({ behavior: "smooth", block: "start" });
         }
@@ -1458,57 +1671,14 @@ def render_dashboard(settings: SettingsRecord) -> str:
             state.sessions = sessionResults.filter((session) => session !== null);
             syncSelectedSession();
             console.log("Final state:", { schedules: state.schedules.length, sessions: state.sessions.length });
-            renderRuntimeInfo();
             renderSchedules();
             renderHistory();
             renderLatest();
-            refreshProviderModels(state.settings.active_ai_provider).catch((error) => {
-              modelLoadStatus.textContent = error.message || "Could not load models.";
-            });
+            renderNewSessionsNotice();
           } catch (error) {
             console.error("Load failed:", error);
             latestResultEl.innerHTML = `<pre>Load failed: ${escapeHtml(error.message)}</pre>`;
           }
-        }
-
-        modelForm.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          settingsSaveStatus.textContent = "Saving...";
-          try {
-            state.settings = await fetchJson("/api/settings", {
-              method: "PUT",
-              body: JSON.stringify({
-                active_ai_provider: providerInput.value.trim(),
-                active_model: modelInput.value.trim(),
-                preferred_speech_voice_uri: speechVoiceInput.value.trim(),
-              }),
-            });
-            renderRuntimeInfo();
-            settingsSaveStatus.textContent = "Saved.";
-          } catch (error) {
-            settingsSaveStatus.textContent = error.message || "Settings could not be saved.";
-          }
-        });
-
-        providerInput.addEventListener("change", () => {
-          state.settings.active_ai_provider = providerInput.value;
-          const providerModels = (state.settings.available_models_by_provider || {})[providerInput.value] || [];
-          state.settings.available_models = providerModels;
-          state.settings.active_model = providerModels.includes(modelInput.value) ? modelInput.value : (providerModels[0] || "");
-          renderRuntimeInfo();
-          refreshProviderModels(providerInput.value).catch((error) => {
-            modelLoadStatus.textContent = error.message || "Could not load models.";
-          });
-        });
-
-        modelInput.addEventListener("focus", () => {
-          refreshProviderModels(providerInput.value).catch((error) => {
-            modelLoadStatus.textContent = error.message || "Could not load models.";
-          });
-        });
-
-        if (speechSupported()) {
-          window.speechSynthesis.addEventListener("voiceschanged", renderSpeechVoiceOptions);
         }
 
         scheduleForm.addEventListener("submit", async (event) => {
@@ -1533,17 +1703,20 @@ def render_dashboard(settings: SettingsRecord) -> str:
             is_active: form.get("is_active") === "on",
             notification_enabled: form.get("notification_enabled") === "on",
             telegram_enabled: form.get("telegram_enabled") === "on",
+            preferred_speech_voice_uri: String(form.get("preferred_speech_voice_uri") || "").trim(),
           };
           await fetchJson(scheduleId ? `/api/schedules/${scheduleId}` : "/api/schedules", {
             method: scheduleId ? "PUT" : "POST",
             body: JSON.stringify(payload),
           });
           resetScheduleForm();
+          setScheduleEditorCollapsed(true);
           await loadAll();
         });
 
         cancelScheduleEditButton.addEventListener("click", () => {
           resetScheduleForm();
+          setScheduleEditorCollapsed(true);
         });
 
         historyListEl.addEventListener("click", async (event) => {
@@ -1555,6 +1728,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
             if (state.selectedSessionId === sessionId) {
               state.selectedSessionId = null;
             }
+            markSessionSeen(sessionId);
             await loadAll();
             return;
           }
@@ -1573,11 +1747,24 @@ def render_dashboard(settings: SettingsRecord) -> str:
           }
           const button = event.target.closest("[data-session-id]");
           if (!button) return;
-          const session = await fetchJson(`/api/sessions/${button.dataset.sessionId}`);
-          state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)];
-          state.selectedSessionId = session.id;
+          await openSessionInLatest(Number(button.dataset.sessionId));
+        });
+
+        openNewestSessionButton.addEventListener("click", () => {
+          const newest = getUnseenSessions()[0];
+          if (!newest) {
+            markAllSessionsSeen();
+            return;
+          }
+          state.selectedSessionId = newest.id;
+          markSessionSeen(newest.id);
+          setHistoryCollapsed(false);
           renderHistory();
           renderLatest();
+        });
+
+        clearNewSessionsNoticeButton.addEventListener("click", () => {
+          markAllSessionsSeen();
         });
 
         toggleHistoryButton.addEventListener("click", () => {
@@ -1585,9 +1772,10 @@ def render_dashboard(settings: SettingsRecord) -> str:
           setHistoryCollapsed(!collapsed);
         });
 
-        toggleRuntimeButton.addEventListener("click", () => {
-          const collapsed = toggleRuntimeButton.dataset.collapsed === "true";
-          setRuntimeCollapsed(!collapsed);
+        historyScheduleFilterEl.addEventListener("change", () => {
+          const value = historyScheduleFilterEl.value;
+          state.historyScheduleId = value ? Number(value) : null;
+          renderHistory();
         });
 
         toggleSchedulesButton.addEventListener("click", () => {
@@ -1606,6 +1794,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
           }
           await fetchJson("/api/sessions", { method: "DELETE" });
           state.selectedSessionId = null;
+          markAllSessionsSeen();
           await loadAll();
         });
 
@@ -1642,6 +1831,16 @@ def render_dashboard(settings: SettingsRecord) -> str:
             renderSchedules();
             return;
           }
+          const openPendingButton = event.target.closest("[data-open-pending-session-id]");
+          if (openPendingButton) {
+            await openSessionInLatest(Number(openPendingButton.dataset.openPendingSessionId));
+            return;
+          }
+          const acknowledgeButton = event.target.closest("[data-acknowledge-session-id]");
+          if (acknowledgeButton) {
+            await acknowledgeSession(Number(acknowledgeButton.dataset.acknowledgeSessionId));
+            return;
+          }
           const editButton = event.target.closest("[data-edit-schedule-id]");
           if (editButton) {
             loadScheduleIntoForm(Number(editButton.dataset.editScheduleId));
@@ -1654,7 +1853,7 @@ def render_dashboard(settings: SettingsRecord) -> str:
             if (!schedule) {
               return;
             }
-            await fetchJson(`/api/schedules/${scheduleId}`, {
+            const updatedSchedule = await fetchJson(`/api/schedules/${scheduleId}`, {
               method: "PUT",
               body: JSON.stringify({
                 name: schedule.name,
@@ -1665,9 +1864,14 @@ def render_dashboard(settings: SettingsRecord) -> str:
                 is_active: !schedule.is_active,
                 notification_enabled: schedule.notification_enabled,
                 telegram_enabled: schedule.telegram_enabled,
+                preferred_speech_voice_uri: schedule.preferred_speech_voice_uri || "",
               }),
             });
-            await loadAll();
+            state.schedules = state.schedules.map((item) =>
+              item.id === scheduleId ? updatedSchedule : item
+            );
+            renderSchedules();
+            renderLatest();
             if (scheduleForm.elements.schedule_id.value === String(scheduleId)) {
               loadScheduleIntoForm(scheduleId);
             }
@@ -1683,6 +1887,9 @@ def render_dashboard(settings: SettingsRecord) -> str:
             if (scheduleForm.elements.schedule_id.value === String(scheduleId)) {
               resetScheduleForm();
             }
+            if (state.historyScheduleId === scheduleId) {
+              state.historyScheduleId = null;
+            }
             await loadAll();
             return;
           }
@@ -1692,27 +1899,32 @@ def render_dashboard(settings: SettingsRecord) -> str:
           await runScheduleNow(scheduleId);
         });
 
-        enableNotificationsButton.addEventListener("click", async () => {
-          if (!("Notification" in window)) {
-            renderNotificationPermission();
-            return;
-          }
-          await Notification.requestPermission();
-          renderNotificationPermission();
-        });
-
         function notifyBrowser(session) {
           if (!("Notification" in window) || Notification.permission !== "granted" || session.status !== "success" || !session.render_payload) {
             return;
           }
+          if (latestBrowserNotification) {
+            const previousNotification = latestBrowserNotification;
+            latestBrowserNotification = null;
+            previousNotification.close();
+          }
           const notification = new Notification(getSessionDisplayTitle(session), {
             body: session.render_payload.summary,
+            tag: `prompt-study-notifier-${session.id}`,
+            requireInteraction: true,
           });
+          latestBrowserNotification = notification;
+          notification.onclose = () => {
+            if (latestBrowserNotification === notification) {
+              latestBrowserNotification = null;
+            }
+          };
           notification.onclick = () => {
             notification.close();
             window.focus();
-            state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)];
+            upsertSession(session);
             state.selectedSessionId = session.id;
+            markSessionSeen(session.id);
             renderHistory();
             renderLatest();
           };
@@ -1722,7 +1934,6 @@ def render_dashboard(settings: SettingsRecord) -> str:
           if (liveReconnectTimer !== null) {
             return;
           }
-          connectionStatus.textContent = "Reconnecting…";
           liveReconnectTimer = window.setTimeout(() => {
             liveReconnectTimer = null;
             connectLive();
@@ -1734,23 +1945,18 @@ def render_dashboard(settings: SettingsRecord) -> str:
             return;
           }
           window.clearTimeout(liveConnectTimeout);
-          connectionStatus.textContent = "Connecting…";
           const protocol = window.location.protocol === "https:" ? "wss" : "ws";
           const socket = new WebSocket(`${protocol}://${window.location.host}/api/live`);
           liveSocket = socket;
           liveConnectTimeout = window.setTimeout(() => {
             if (socket.readyState === WebSocket.CONNECTING) {
-              connectionStatus.textContent = "Live timeout";
               socket.close();
             }
           }, 5000);
           socket.onopen = () => {
             window.clearTimeout(liveConnectTimeout);
-            connectionStatus.textContent = "Live connected";
           };
-          socket.onerror = () => {
-            connectionStatus.textContent = "Live error";
-          };
+          socket.onerror = () => {};
           socket.onclose = () => {
             window.clearTimeout(liveConnectTimeout);
             if (liveSocket === socket) {
@@ -1763,14 +1969,17 @@ def render_dashboard(settings: SettingsRecord) -> str:
             if (payload.type === "session.created") {
               const session = payload.session;
               setManualRunInFlight(payload.schedule.id, false);
-              state.sessions = [session, ...state.sessions.filter((item) => item.id !== session.id)].slice(0, 200);
+              upsertSession(session);
+              state.sessions = state.sessions.slice(0, 200);
+              if (session.status === "success" && session.render_payload) {
+                state.unseenSessionIds = [session.id, ...state.unseenSessionIds.filter((id) => id !== session.id)].slice(0, 50);
+              }
               state.selectedSessionId = session.id;
-              state.schedules = state.schedules.map((schedule) =>
-                schedule.id === payload.schedule.id ? payload.schedule : schedule
-              );
+              upsertSchedule(payload.schedule);
               renderSchedules();
               renderHistory();
               renderLatest();
+              renderNewSessionsNotice();
               if (payload.run_source !== "manual" && payload.schedule?.notification_enabled) {
                 notifyBrowser(session);
               }
@@ -1778,15 +1987,16 @@ def render_dashboard(settings: SettingsRecord) -> str:
           };
         }
 
-        renderRuntimeInfo();
-        renderNotificationPermission();
-        setRuntimeCollapsed(true);
         setHistoryCollapsed(true);
-        setSchedulesCollapsed(false);
+        setSchedulesCollapsed(true);
         setScheduleEditorCollapsed(true);
+        renderScheduleVoiceOptions();
+        if (speechSupported()) {
+          window.speechSynthesis.addEventListener("voiceschanged", renderScheduleVoiceOptions);
+        }
         resetScheduleForm();
+        renderNewSessionsNotice();
         loadAll().then(connectLive).catch((error) => {
-          connectionStatus.textContent = "Load failed";
           latestResultEl.innerHTML = `<pre>${escapeHtml(error.message)}</pre>`;
         });
       </script>
@@ -1794,8 +2004,217 @@ def render_dashboard(settings: SettingsRecord) -> str:
     return _shell(
         "Prompt Study Notifier",
         "dashboard",
-        body.replace("__PROVIDER_OPTIONS__", provider_options_markup).replace("__MODEL_OPTIONS__", model_options_markup),
+        body,
         settings_json=settings_json,
+        ui_theme=settings.ui_theme,
+    )
+
+
+def render_settings_page(settings: SettingsRecord) -> str:
+    settings_json = json.dumps(settings.model_dump())
+    model_options_markup = _model_options_markup(settings)
+    provider_options_markup = _provider_options_markup(settings)
+    theme_options_markup = _theme_options_markup(settings)
+    body = """
+      <section class="panel" style="margin-top:18px;">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-intro">Configure runtime defaults, AI provider selection, browser notifications, and the dashboard theme.</p>
+      </section>
+
+      <section class="layout layout-templates">
+        <div class="column">
+          <section class="panel">
+            <h2>Runtime</h2>
+            <div class="actions">
+              <span class="chip" id="runtimeInfo"></span>
+              <span class="chip" id="modelLoadStatus" aria-live="polite"></span>
+            </div>
+            <div class="list" style="margin-top:14px;">
+              <article class="list-item">
+                <p><strong>Prompt Cache</strong></p>
+                <p class="muted" id="promptCacheInfo"></p>
+              </article>
+              <article class="list-item">
+                <p><strong>Retention</strong></p>
+                <p class="muted" id="retentionInfo"></p>
+              </article>
+              <article class="list-item">
+                <p><strong>Scheduler Polling</strong></p>
+                <p class="muted" id="schedulerInfo"></p>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <div class="column">
+          <section class="panel">
+            <h2>Preferences</h2>
+            <form id="settingsForm">
+              <label class="field">
+                <span class="field-label">AI Provider</span>
+                <select id="providerInput" name="active_ai_provider">__PROVIDER_OPTIONS__</select>
+              </label>
+              <label class="field">
+                <span class="field-label">Model</span>
+                <select id="modelInput" name="active_model">__MODEL_OPTIONS__</select>
+              </label>
+              <label class="field">
+                <span class="field-label">Theme</span>
+                <select id="themeInput" name="ui_theme">__THEME_OPTIONS__</select>
+              </label>
+              <div class="field" id="browserNotificationField">
+                <span class="field-label">Browser Notifications</span>
+                <div class="actions" style="align-items:center;">
+                  <button id="enableNotificationsButton" class="secondary" type="button">Enable Notifications</button>
+                  <span id="notificationPermissionStatus" class="muted"></span>
+                </div>
+              </div>
+              <div class="actions">
+                <button type="submit">Save Settings</button>
+                <span id="settingsSaveStatus" class="muted" aria-live="polite"></span>
+              </div>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <script>
+        const state = { settings };
+        const runtimeInfo = document.getElementById("runtimeInfo");
+        const modelLoadStatus = document.getElementById("modelLoadStatus");
+        const promptCacheInfo = document.getElementById("promptCacheInfo");
+        const retentionInfo = document.getElementById("retentionInfo");
+        const schedulerInfo = document.getElementById("schedulerInfo");
+        const settingsForm = document.getElementById("settingsForm");
+        const providerInput = document.getElementById("providerInput");
+        const modelInput = document.getElementById("modelInput");
+        const themeInput = document.getElementById("themeInput");
+        const browserNotificationField = document.getElementById("browserNotificationField");
+        const enableNotificationsButton = document.getElementById("enableNotificationsButton");
+        const notificationPermissionStatus = document.getElementById("notificationPermissionStatus");
+        const settingsSaveStatus = document.getElementById("settingsSaveStatus");
+
+        function applyTheme() {
+          document.body.dataset.theme = state.settings.ui_theme || "dark";
+          themeInput.value = state.settings.ui_theme || "dark";
+        }
+
+        function renderSettings() {
+          runtimeInfo.textContent = `${state.settings.active_ai_provider}:${state.settings.active_model} on ${state.settings.host}:${state.settings.port}`;
+          promptCacheInfo.textContent = state.settings.prompt_cache_retention;
+          retentionInfo.textContent = `${state.settings.retention_limit} sessions`;
+          schedulerInfo.textContent = `Every ${state.settings.scheduler_poll_seconds}s`;
+          providerInput.innerHTML = (state.settings.available_ai_providers || []).map((provider) => `
+            <option value="${escapeHtml(provider)}">${escapeHtml(provider.charAt(0).toUpperCase() + provider.slice(1))}</option>
+          `).join("");
+          providerInput.value = state.settings.active_ai_provider;
+          const providerModels = (state.settings.available_models_by_provider || {})[providerInput.value] || state.settings.available_models || [];
+          modelInput.innerHTML = providerModels.map((model) => `
+            <option value="${escapeHtml(model)}">${escapeHtml(model)}</option>
+          `).join("");
+          modelInput.value = state.settings.active_model;
+          applyTheme();
+        }
+
+        async function refreshProviderModels(provider) {
+          modelLoadStatus.textContent = "Loading models...";
+          const result = await fetchJson(`/api/settings/models?provider=${encodeURIComponent(provider)}`);
+          state.settings.available_models_by_provider = {
+            ...(state.settings.available_models_by_provider || {}),
+            [provider]: result.models || [],
+          };
+          if (provider === state.settings.active_ai_provider) {
+            state.settings.available_models = result.models || [];
+            if (!state.settings.available_models.includes(state.settings.active_model)) {
+              state.settings.active_model = state.settings.available_models[0] || "";
+            }
+          }
+          renderSettings();
+          modelLoadStatus.textContent = result.source === "live"
+            ? `Loaded ${(result.models || []).length} models.`
+            : (result.detail || "Using configured fallback models.");
+        }
+
+        function renderNotificationPermission() {
+          browserNotificationField.style.display = "";
+          enableNotificationsButton.style.display = "none";
+          notificationPermissionStatus.textContent = "";
+          if (!("Notification" in window)) {
+            notificationPermissionStatus.textContent = "Not supported in this browser.";
+            return;
+          }
+          if (Notification.permission === "granted") {
+            notificationPermissionStatus.textContent = "Enabled.";
+            return;
+          }
+          if (Notification.permission === "denied") {
+            notificationPermissionStatus.textContent = "Blocked in browser settings.";
+            return;
+          }
+          enableNotificationsButton.style.display = "";
+        }
+
+        settingsForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          settingsSaveStatus.textContent = "Saving...";
+          try {
+            state.settings = await fetchJson("/api/settings", {
+              method: "PUT",
+              body: JSON.stringify({
+                active_ai_provider: providerInput.value.trim(),
+                active_model: modelInput.value.trim(),
+                ui_theme: themeInput.value,
+              }),
+            });
+            renderSettings();
+            settingsSaveStatus.textContent = "Saved.";
+          } catch (error) {
+            settingsSaveStatus.textContent = error.message || "Settings could not be saved.";
+          }
+        });
+
+        providerInput.addEventListener("change", () => {
+          state.settings.active_ai_provider = providerInput.value;
+          const providerModels = (state.settings.available_models_by_provider || {})[providerInput.value] || [];
+          state.settings.available_models = providerModels;
+          state.settings.active_model = providerModels.includes(modelInput.value) ? modelInput.value : (providerModels[0] || "");
+          renderSettings();
+          refreshProviderModels(providerInput.value).catch((error) => {
+            modelLoadStatus.textContent = error.message || "Could not load models.";
+          });
+        });
+
+        themeInput.addEventListener("change", () => {
+          state.settings.ui_theme = themeInput.value;
+          applyTheme();
+        });
+
+        modelInput.addEventListener("focus", () => {
+          refreshProviderModels(providerInput.value).catch((error) => {
+            modelLoadStatus.textContent = error.message || "Could not load models.";
+          });
+        });
+
+        enableNotificationsButton.addEventListener("click", async () => {
+          if ("Notification" in window) {
+            await Notification.requestPermission();
+          }
+          renderNotificationPermission();
+        });
+
+        renderSettings();
+        renderNotificationPermission();
+        refreshProviderModels(state.settings.active_ai_provider).catch((error) => {
+          modelLoadStatus.textContent = error.message || "Could not load models.";
+        });
+      </script>
+    """
+    return _shell(
+        "Settings | Prompt Study Notifier",
+        "settings",
+        body.replace("__PROVIDER_OPTIONS__", provider_options_markup).replace("__MODEL_OPTIONS__", model_options_markup).replace("__THEME_OPTIONS__", theme_options_markup),
+        settings_json=settings_json,
+        ui_theme=settings.ui_theme,
     )
 
 
@@ -1857,6 +2276,10 @@ def render_templates_page(settings: SettingsRecord, templates: list[TemplateReco
         <div class="column">
           <section class="panel">
             <h2>Existing Templates</h2>
+            <div id="templateNotification" class="notification" role="alert" aria-live="polite" hidden>
+              <strong id="templateNotificationTitle"></strong>
+              <p id="templateNotificationMessage"></p>
+            </div>
             <div id="templatesList" class="list">
               __TEMPLATES_MARKUP__
             </div>
@@ -1868,9 +2291,39 @@ def render_templates_page(settings: SettingsRecord, templates: list[TemplateReco
         const state = { settings, templates: __INITIAL_TEMPLATES__ };
         const templateForm = document.getElementById("templateForm");
         const templatesListEl = document.getElementById("templatesList");
+        const templateNotification = document.getElementById("templateNotification");
+        const templateNotificationTitle = document.getElementById("templateNotificationTitle");
+        const templateNotificationMessage = document.getElementById("templateNotificationMessage");
         const templatePreview = document.getElementById("templatePreview");
         const saveTemplateButton = document.getElementById("saveTemplateButton");
         const cancelTemplateEditButton = document.getElementById("cancelTemplateEditButton");
+
+        function showTemplateNotification(kind, title, message) {
+          templateNotification.dataset.kind = kind;
+          templateNotificationTitle.textContent = title;
+          templateNotificationMessage.textContent = message;
+          templateNotification.hidden = false;
+        }
+
+        function hideTemplateNotification() {
+          templateNotification.hidden = true;
+          templateNotificationTitle.textContent = "";
+          templateNotificationMessage.textContent = "";
+        }
+
+        function normalizeTemplateDeleteError(error) {
+          let message = String(error?.message || "");
+          try {
+            const payload = JSON.parse(message);
+            message = payload?.detail || message;
+          } catch {
+            // The shared fetch helper already unwraps JSON details in normal cases.
+          }
+          if (message.includes("still used") || message.includes("used by one or more schedules")) {
+            return "This template is used by one or more schedules. Delete those schedules first, then delete the template.";
+          }
+          return message || "The template could not be deleted.";
+        }
 
         function renderTemplates() {
           templatesListEl.innerHTML = state.templates.map((template) => `
@@ -1974,13 +2427,15 @@ def render_templates_page(settings: SettingsRecord, templates: list[TemplateReco
               return;
             }
             try {
+              hideTemplateNotification();
               await fetchJson(`/api/templates/${templateId}`, { method: "DELETE" });
               if (templateForm.elements.template_id.value === String(templateId)) {
                 resetTemplateForm();
               }
               await loadAll();
+              showTemplateNotification("success", "Template Deleted", "The template was removed.");
             } catch (error) {
-              templatePreview.innerHTML = `<pre>${escapeHtml(error.message)}</pre>`;
+              showTemplateNotification("error", "Template Not Deleted", normalizeTemplateDeleteError(error));
             }
           })();
         });
@@ -1994,4 +2449,4 @@ def render_templates_page(settings: SettingsRecord, templates: list[TemplateReco
     """
     body = body.replace("__INITIAL_TEMPLATES__", templates_json)
     body = body.replace("__TEMPLATES_MARKUP__", templates_markup)
-    return _shell("Templates | Prompt Study Notifier", "templates", body, settings_json=settings_json)
+    return _shell("Templates | Prompt Study Notifier", "templates", body, settings_json=settings_json, ui_theme=settings.ui_theme)

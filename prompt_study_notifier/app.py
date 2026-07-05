@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
@@ -36,7 +37,7 @@ from prompt_study_notifier.schemas import (
 )
 from prompt_study_notifier.settings import Settings
 from prompt_study_notifier.telegram_client import TelegramClient, TelegramClientError
-from prompt_study_notifier.ui import render_dashboard, render_templates_page
+from prompt_study_notifier.ui import render_dashboard, render_settings_page, render_templates_page
 
 
 logger = logging.getLogger(__name__)
@@ -171,6 +172,7 @@ class SchedulerRuntime:
 
 def create_app(settings: Settings, *, telegram_client: TelegramClient | None = None) -> FastAPI:
     openai_models = [
+        "gpt-4o",
         "gpt-5-mini",
         "gpt-5.4-mini",
         "gpt-5",
@@ -207,10 +209,17 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
         models = available_models_for_active_provider()
         return stored_model if stored_model in models else models[0]
 
-    def refresh_provider_models(provider: str) -> ModelListResponse:
+    _provider_models_cache_ttl = 300  # seconds
+    _provider_models_cache_ts: dict[str, float] = {}
+
+    def refresh_provider_models(provider: str, force: bool = False) -> ModelListResponse:
         if provider not in available_ai_providers:
             raise HTTPException(status_code=400, detail="That AI provider is not supported.")
         fallback_models = available_models_by_provider[provider]
+        now = time.monotonic()
+        last_fetch = _provider_models_cache_ts.get(provider, 0.0)
+        if not force and (now - last_fetch) < _provider_models_cache_ttl:
+            return ModelListResponse(provider=provider, models=fallback_models, source="live")
         try:
             models = github_models_client.list_models() if provider == "github" else openai_client.list_models()
         except AIClientError as exc:
@@ -223,6 +232,7 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
                 detail="Provider returned no text generation models.",
             )
         available_models_by_provider[provider] = models
+        _provider_models_cache_ts[provider] = now
         return ModelListResponse(provider=provider, models=models, source="live")
 
     client = RoutingAIClient(
@@ -263,7 +273,7 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
             active_model=active_model(),
             active_ai_provider=active_ai_provider(),
             available_ai_providers=available_ai_providers,
-            preferred_speech_voice_uri=db.get_preferred_speech_voice_uri(),
+            ui_theme=db.get_ui_theme(),
             available_models=available_models_for_active_provider(),
             available_models_by_provider=available_models_by_provider,
             prompt_cache_retention=settings.prompt_cache_retention,
@@ -311,6 +321,10 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
     @app.get("/templates", response_class=HTMLResponse)
     async def templates_page() -> str:
         return render_templates_page(build_settings_record(), db.list_templates())
+
+    @app.get("/settings", response_class=HTMLResponse)
+    async def settings_page() -> str:
+        return render_settings_page(build_settings_record())
 
     @app.get("/api/settings", response_model=SettingsRecord)
     async def get_settings() -> SettingsRecord:
@@ -446,8 +460,8 @@ def create_app(settings: Settings, *, telegram_client: TelegramClient | None = N
         return RunNowResponse(status="queued")
 
     @app.get("/api/sessions", response_model=list[SessionSummary])
-    async def list_sessions(limit: int = 20) -> list[SessionSummary]:
-        return db.list_sessions(limit=limit)
+    async def list_sessions(limit: int = 20, schedule_id: int | None = None) -> list[SessionSummary]:
+        return db.list_sessions(limit=limit, schedule_id=schedule_id)
 
     @app.get("/api/metrics/prompt-cache", response_model=PromptCacheMetrics)
     async def get_prompt_cache_metrics(limit: int = 50) -> PromptCacheMetrics:

@@ -47,7 +47,7 @@ def load_settings() -> Settings:
         host=os.environ.get("PSN_HOST", "127.0.0.1"),
         port=int(os.environ.get("PSN_PORT", "8765")),
         openai_api_key=os.environ.get("OPENAI_API_KEY"),
-        model=os.environ.get("PSN_MODEL", "gpt-5"),
+        model=os.environ.get("PSN_MODEL", "gpt-4o"),
         prompt_cache_retention=os.environ.get("PSN_PROMPT_CACHE_RETENTION", "in_memory"),
         retention_limit=int(os.environ.get("PSN_RETENTION_LIMIT", "50")),
         scheduler_poll_seconds=int(os.environ.get("PSN_SCHEDULER_POLL_SECONDS", "15")),

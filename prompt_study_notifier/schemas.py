@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -60,6 +60,7 @@ class ScheduleUpsert(BaseModel):
     is_active: bool = True
     notification_enabled: bool = True
     telegram_enabled: bool = False
+    preferred_speech_voice_uri: str = ""
 
     @field_validator("cron_expr", mode="before")
     @classmethod
@@ -142,7 +143,7 @@ class SettingsRecord(BaseModel):
     active_model: str
     active_ai_provider: str = "openai"
     available_ai_providers: list[str] = Field(default_factory=lambda: ["openai"])
-    preferred_speech_voice_uri: str = ""
+    ui_theme: Literal["dark", "dark_green", "dark_brown"] = "dark"
     available_models: list[str] = Field(default_factory=list)
     available_models_by_provider: dict[str, list[str]] = Field(default_factory=dict)
     prompt_cache_retention: str
@@ -155,7 +156,7 @@ class SettingsRecord(BaseModel):
 class SettingsUpdateRequest(BaseModel):
     active_model: str
     active_ai_provider: str = "openai"
-    preferred_speech_voice_uri: str = ""
+    ui_theme: Literal["dark", "dark_green", "dark_brown"] = "dark"
 
 
 class ModelListResponse(BaseModel):

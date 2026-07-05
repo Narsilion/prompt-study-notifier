@@ -14,17 +14,58 @@ class GenerationError(RuntimeError):
     """Raised when generation fails before persistence."""
 
 
+SERBIAN_VARIANT_INSTRUCTION = (
+    "Serbian variant requirements: If the target language is Serbian, use standard Serbian only. "
+    "Default to Ekavian Serbian as used in Serbia unless the schedule explicitly requests another Serbian standard. "
+    "Avoid Croatian- or Bosnian-specific vocabulary, spelling, and constructions. "
+    "Keep all Serbian terms and examples consistent with the same Serbian variant."
+)
+SERBIAN_MARKERS = ("serbian", "srpski", "srpska", "srpsko", "српски", "српска", "српско")
+
+
 def _normalize_term(term: str) -> str:
     return term.strip().casefold()
 
 
-def _extract_primary_term(payload: object) -> str:
+def _extract_item_terms(payload: object) -> list[str]:
     if not hasattr(payload, "items") or not payload.items:
-        raise ValueError("Generated payload did not include a first study item term.")
-    term = payload.items[0].term.strip()
-    if not term:
-        raise ValueError("Generated payload did not include a first study item term.")
-    return term
+        raise ValueError("Generated payload did not include any study item terms.")
+    terms = [item.term.strip() for item in payload.items if item.term.strip()]
+    if not terms:
+        raise ValueError("Generated payload did not include any study item terms.")
+    return terms
+
+
+def _mentions_serbian(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = value.casefold()
+    return any(marker in normalized for marker in SERBIAN_MARKERS)
+
+
+def _should_apply_serbian_variant_instruction(*, schedule_name: str, template_name: str, variables: dict[str, object]) -> bool:
+    if _mentions_serbian(schedule_name) or _mentions_serbian(template_name):
+        return True
+    for key, value in variables.items():
+        if "language" in key.casefold() and _mentions_serbian(value):
+            return True
+    return False
+
+
+def _apply_language_variant_instructions(
+    rendered_prompt: str,
+    *,
+    schedule_name: str,
+    template_name: str,
+    variables: dict[str, object],
+) -> str:
+    if not _should_apply_serbian_variant_instruction(
+        schedule_name=schedule_name,
+        template_name=template_name,
+        variables=variables,
+    ):
+        return rendered_prompt
+    return f"{rendered_prompt}\n\n{SERBIAN_VARIANT_INSTRUCTION}"
 
 
 @dataclass(slots=True)
@@ -45,16 +86,28 @@ class GenerationService:
         self,
         rendered_prompt: str,
         *,
-        prior_terms: list[str],
+        prior_items: list[dict[str, str]],
         forbidden_term: str | None = None,
     ) -> str:
-        if not prior_terms:
+        if not prior_items:
             return rendered_prompt
+        history_lines = []
+        for item in prior_items:
+            details = [f"term: {item['term']}"]
+            if item.get("example_source"):
+                details.append(f"example: {item['example_source']}")
+            if item.get("example_target"):
+                details.append(f"translation: {item['example_target']}")
+            if item.get("notes"):
+                details.append(f"notes: {item['notes']}")
+            history_lines.append(f"- {' | '.join(details)}")
         history_block = [
             "",
-            "Do not repeat any previously generated study-card word from this schedule.",
-            f"Previously used words: {', '.join(prior_terms)}",
-            "Return a different real word. If a candidate would repeat one of the listed words, choose another one.",
+            "Do not repeat or closely paraphrase recently generated study-card content from this schedule.",
+            "Recent generated items to avoid:",
+            *history_lines,
+            "Avoid reusing listed terms, verbs, example sentences, sentence templates, subjects, contexts, key nouns, translations, or notes.",
+            "If a candidate would overlap with the recent history, choose a different term, example, context, and structure.",
         ]
         if forbidden_term:
             history_block.append(f'The word "{forbidden_term}" is forbidden because it was already generated. Choose a different word.')
@@ -89,7 +142,8 @@ class GenerationService:
         started = perf_counter()
         active_model = self.db.get_active_model(self.model)
         applied_prompt_cache_retention, prompt_cache_retention_note = self._resolve_prompt_cache_retention(active_model)
-        prior_terms = self.db.list_schedule_terms(schedule.id)[: self.uniqueness_history_limit]
+        prior_items = self.db.list_schedule_history_items(schedule.id, limit=self.uniqueness_history_limit)
+        prior_terms = list(dict.fromkeys(item["term"] for item in prior_items))
         generation_attempts: list[dict[str, object]] = []
         prompt_snapshot = {
             "schedule_name": schedule.name,
@@ -100,6 +154,7 @@ class GenerationService:
             "variable_names": template.variable_names,
             "active_model": active_model,
             "prior_terms": prior_terms,
+            "prior_items": prior_items,
             "generation_attempts": generation_attempts,
             "duplicate_term_detected": False,
             "prompt_cache": {
@@ -109,7 +164,12 @@ class GenerationService:
             },
         }
         try:
-            rendered_prompt = render_prompt(template.user_prompt_template, schedule.variables)
+            rendered_prompt = _apply_language_variant_instructions(
+                render_prompt(template.user_prompt_template, schedule.variables),
+                schedule_name=schedule.name,
+                template_name=template.name,
+                variables=schedule.variables,
+            )
             duplicate_term: str | None = None
             render_payload = None
             final_prompt = rendered_prompt
@@ -117,7 +177,7 @@ class GenerationService:
             for attempt_number in (1, 2):
                 attempt_prompt = self._build_prompt_with_history(
                     rendered_prompt,
-                    prior_terms=prior_terms,
+                    prior_items=prior_items,
                     forbidden_term=duplicate_term,
                 )
                 final_prompt = attempt_prompt
@@ -129,19 +189,21 @@ class GenerationService:
                 )
                 render_payload = result.payload
                 usage_snapshot = self._usage_snapshot(result.usage)
-                primary_term = _extract_primary_term(render_payload)
+                generated_terms = _extract_item_terms(render_payload)
+                primary_term = generated_terms[0]
                 generation_attempts.append(
                     {
                         "attempt": attempt_number,
                         "user_prompt": attempt_prompt,
                         "term": primary_term,
+                        "terms": generated_terms,
                         "usage": usage_snapshot,
                     }
                 )
                 prompt_snapshot["openai_usage"] = usage_snapshot
-                if _normalize_term(primary_term) not in prior_term_keys:
+                duplicate_term = next((term for term in generated_terms if _normalize_term(term) in prior_term_keys), None)
+                if duplicate_term is None:
                     break
-                duplicate_term = primary_term
                 prompt_snapshot["duplicate_term_detected"] = True
                 if attempt_number == 2:
                     raise ValueError(

@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from prompt_study_notifier.db import Database
-from prompt_study_notifier.generation import GenerationService
+from prompt_study_notifier.generation import GenerationService, SERBIAN_VARIANT_INSTRUCTION
 from prompt_study_notifier.openai_client import OpenAIResult, OpenAIUsage
 from prompt_study_notifier.schemas import StudyPayload, TemplateUpsert, ScheduleUpsert
 
@@ -119,6 +119,37 @@ def test_generate_for_schedule_persists_successful_session(tmp_path: Path) -> No
     assert schedule.pending_acknowledgement_count == 1
 
 
+def test_generate_for_schedule_adds_serbian_variant_instruction(tmp_path: Path) -> None:
+    db, service, schedule_id, client = _build_service(tmp_path)
+    schedule = db.get_schedule(schedule_id)
+    db.update_schedule(
+        schedule_id,
+        ScheduleUpsert(
+            name=schedule.name,
+            template_id=schedule.template_id,
+            variables={"target_language": "Serbian", "topic": "work vocabulary"},
+            interval_minutes=schedule.interval_minutes,
+            timezone=schedule.timezone,
+            telegram_enabled=schedule.telegram_enabled,
+        ),
+    )
+
+    session = service.generate_for_schedule(schedule_id)
+
+    assert session.status == "success"
+    assert SERBIAN_VARIANT_INSTRUCTION in client.prompts[-1]
+    assert "Avoid Croatian- or Bosnian-specific vocabulary" in session.prompt_snapshot["rendered_user_prompt"]
+
+
+def test_generate_for_schedule_does_not_add_serbian_variant_instruction_for_other_languages(tmp_path: Path) -> None:
+    _, service, schedule_id, client = _build_service(tmp_path)
+
+    session = service.generate_for_schedule(schedule_id)
+
+    assert session.status == "success"
+    assert SERBIAN_VARIANT_INSTRUCTION not in client.prompts[-1]
+
+
 def test_generate_for_schedule_keeps_next_run_for_telegram_enabled_schedule(tmp_path: Path) -> None:
     db, service, schedule_id, _ = _build_service(tmp_path, telegram_enabled=True)
     session = service.generate_for_schedule(schedule_id)
@@ -182,6 +213,15 @@ def test_list_schedule_terms_returns_distinct_success_terms_for_one_schedule(tmp
                     "example_target": "That is an experience.",
                     "notes": "note",
                     "tags": [],
+                },
+                {
+                    "term": "  Fahrkarte  ",
+                    "translation": "ticket",
+                    "explanation": "desc",
+                    "example_source": "Ich kaufe eine Fahrkarte.",
+                    "example_target": "I am buying a ticket.",
+                    "notes": "travel context",
+                    "tags": [],
                 }
             ],
         }
@@ -238,7 +278,21 @@ def test_list_schedule_terms_returns_distinct_success_terms_for_one_schedule(tmp
         error_text=None,
     )
 
-    assert db.list_schedule_terms(schedule_id) == ["erfahrung"]
+    assert db.list_schedule_terms(schedule_id) == ["erfahrung", "Fahrkarte"]
+    assert db.list_schedule_history_items(schedule_id) == [
+        {
+            "term": "erfahrung",
+            "example_source": "Das ist eine Erfahrung.",
+            "example_target": "That is an experience.",
+            "notes": "note",
+        },
+        {
+            "term": "Fahrkarte",
+            "example_source": "Ich kaufe eine Fahrkarte.",
+            "example_target": "I am buying a ticket.",
+            "notes": "travel context",
+        },
+    ]
 
 
 def test_generate_for_schedule_appends_prior_terms_to_prompt(tmp_path: Path) -> None:
@@ -296,8 +350,18 @@ def test_generate_for_schedule_appends_prior_terms_to_prompt(tmp_path: Path) -> 
 
     assert session.status == "success"
     assert client.prompts[-1].startswith("Teach Spanish about restaurant conversations")
-    assert "Previously used words: Quisiera pedir" in client.prompts[-1]
+    assert "Recent generated items to avoid:" in client.prompts[-1]
+    assert "- term: Quisiera pedir | example: Quisiera pedir una sopa." in client.prompts[-1]
+    assert "Avoid reusing listed terms, verbs, example sentences, sentence templates" in client.prompts[-1]
     assert session.prompt_snapshot["prior_terms"] == ["Quisiera pedir"]
+    assert session.prompt_snapshot["prior_items"] == [
+        {
+            "term": "Quisiera pedir",
+            "example_source": "Quisiera pedir una sopa.",
+            "example_target": "I would like to order a soup.",
+            "notes": "note",
+        }
+    ]
     assert session.prompt_snapshot["duplicate_term_detected"] is False
 
 
@@ -436,7 +500,7 @@ def test_generate_for_schedule_fails_when_primary_term_is_missing(tmp_path: Path
     session = service.generate_for_schedule(schedule_id)
 
     assert session.status == "failed"
-    assert session.error_text == "Generated payload did not include a first study item term."
+    assert session.error_text == "Generated payload did not include any study item terms."
 
 
 def test_generate_for_schedule_limits_prior_terms_to_most_recent_30(tmp_path: Path) -> None:
@@ -494,7 +558,8 @@ def test_generate_for_schedule_limits_prior_terms_to_most_recent_30(tmp_path: Pa
 
     assert session.status == "success"
     assert session.prompt_snapshot["prior_terms"] == [f"Term {index}" for index in range(34, 4, -1)]
-    assert "Previously used words: Term 34, Term 33, Term 32" in client.prompts[-1]
+    assert "Recent generated items to avoid:" in client.prompts[-1]
+    assert "- term: Term 34 | example: Source 34 | translation: Target 34 | notes: note" in client.prompts[-1]
     assert "Term 4" not in client.prompts[-1]
 
 
@@ -568,3 +633,58 @@ def test_acknowledging_one_of_multiple_pending_sessions_keeps_schedule_blocked(t
     assert schedule.awaiting_acknowledgement is False
     assert schedule.pending_acknowledgement_count == 0
     assert schedule.next_run_at == datetime(2026, 3, 20, 11, 35, tzinfo=UTC).isoformat()
+
+
+def test_prune_sessions_preserves_pending_acknowledgements(tmp_path: Path) -> None:
+    db, _, schedule_id, _ = _build_service(tmp_path)
+    template_id = db.list_templates()[0].id
+
+    pending = db.create_session(
+        schedule_id=schedule_id,
+        template_id=template_id,
+        render_payload=StudyPayload.model_validate(
+            {
+                "title": "Pending",
+                "topic": "Topic",
+                "summary": "Summary",
+                "focus_hint": None,
+                "items": [{"term": "Pending"}],
+            }
+        ),
+        model_name="gpt-5",
+        prompt_snapshot={},
+        status="success",
+        error_text=None,
+        generated_at=datetime(2026, 3, 20, 9, 0, tzinfo=UTC),
+    )
+    acknowledged_ids = []
+    for index in range(3):
+        session = db.create_session(
+            schedule_id=schedule_id,
+            template_id=template_id,
+            render_payload=StudyPayload.model_validate(
+                {
+                    "title": f"Acknowledged {index}",
+                    "topic": "Topic",
+                    "summary": "Summary",
+                    "focus_hint": None,
+                    "items": [{"term": f"Ack {index}"}],
+                }
+            ),
+            model_name="gpt-5",
+            prompt_snapshot={},
+            status="success",
+            error_text=None,
+            generated_at=datetime(2026, 3, 20, 10 + index, 0, tzinfo=UTC),
+        )
+        db.acknowledge_session(session.id, acknowledged_at=datetime(2026, 3, 20, 13 + index, 0, tzinfo=UTC))
+        acknowledged_ids.append(session.id)
+
+    db.prune_sessions(limit=1)
+
+    summaries = db.list_sessions(limit=10)
+    remaining_ids = {session.id for session in summaries}
+    assert pending.id in remaining_ids
+    assert acknowledged_ids[-1] in remaining_ids
+    assert acknowledged_ids[0] not in remaining_ids
+    assert acknowledged_ids[1] not in remaining_ids

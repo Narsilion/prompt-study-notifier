@@ -20,7 +20,7 @@ def build_settings(tmp_path: Path) -> Settings:
         host="127.0.0.1",
         port=8765,
         openai_api_key=None,
-        model="gpt-5",
+        model="gpt-4o",
         prompt_cache_retention="in_memory",
         retention_limit=20,
         scheduler_poll_seconds=60,
@@ -182,6 +182,36 @@ def test_format_session_message_omits_focus_when_not_requested_by_template() -> 
     assert "🎯 Focus:" not in message
 
 
+def test_format_session_message_includes_level_variable() -> None:
+    session = SessionRecord(
+        id=1,
+        schedule_id=2,
+        template_id=3,
+        render_payload=build_payload(),
+        model_name="gpt-5",
+        prompt_snapshot={"variables": {"language": "Serbian", "level": "B2", "topic": "work"}},
+        status="success",
+        generated_at=datetime.now(UTC).isoformat(),
+    )
+    schedule = ScheduleRecord(
+        id=2,
+        name="Serbian",
+        template_id=3,
+        variables={},
+        interval_minutes=60,
+        timezone="UTC",
+        is_active=True,
+        notification_enabled=True,
+        telegram_enabled=True,
+        created_at=datetime.now(UTC).isoformat(),
+        updated_at=datetime.now(UTC).isoformat(),
+    )
+
+    message = format_session_message(session, schedule, run_source="scheduled")
+
+    assert "🏷️ Level: B2" in message
+
+
 def test_format_session_message_includes_all_items() -> None:
     session = SessionRecord(
         id=1,
@@ -299,20 +329,58 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
     assert dashboard.status_code == 200
     assert "Prompt Study Notifier" in dashboard.text
     assert "Latest Result" in dashboard.text
+    assert "newSessionsNotice" in dashboard.text
+    assert "1 new card generated" in dashboard.text
+    assert "state.unseenSessionIds" in dashboard.text
     assert "Schedules" in dashboard.text
+    assert "setSchedulesCollapsed(true)" in dashboard.text
+    assert 'id="toggleScheduleEditorButton" class="secondary" type="button" data-collapsed="true">Expand' in dashboard.text
+    assert 'id="scheduleEditorContent" style="display:none;"' in dashboard.text
+    assert "setScheduleEditorCollapsed(true)" in dashboard.text
+    assert "setSchedulesCollapsed(false, false)" in dashboard.text
+    assert "setScheduleEditorCollapsed(false)" in dashboard.text
+    assert 'if (!collapsed && wasCollapsed && collapseEditorOnShow)' in dashboard.text
     assert "data-acknowledge-session-id" in dashboard.text
     assert "Pronounce term" in dashboard.text
     assert "Pronounce example" in dashboard.text
+    assert "next card:" in dashboard.text
     assert "speechSynthesis" in dashboard.text
+    assert 'href="/settings"' in dashboard.text
+    assert 'body data-theme="dark"' in dashboard.text
+    assert "if (selected) {\n              return;" in dashboard.text
+    assert "function selectAfterAcknowledgement(acknowledgedSessionId)" in dashboard.text
+    assert ": acknowledgedSessionId;" in dashboard.text
+    assert "state.selectedSessionId === response.session.id" not in dashboard.text
+    assert "function getSessionGeneratedTitle(session)" in dashboard.text
+    assert "getPendingAcknowledgementSessionsForSchedule" in dashboard.text
+    assert "data-open-pending-session-id" in dashboard.text
+    assert "openSessionInLatest" in dashboard.text
+    assert "historyScheduleFilter" in dashboard.text
+    assert "All schedules" in dashboard.text
+    assert "state.historyScheduleId" in dashboard.text
+    assert "speechVoiceInput" not in dashboard.text
     assert "Preferred Voice" in dashboard.text
-    assert "speechVoiceInput" in dashboard.text
-    assert "settingsSaveStatus" in dashboard.text
-    assert "modelLoadStatus" in dashboard.text
-    assert "state.selectedSessionId === response.session.id" in dashboard.text
+    assert "preferred_speech_voice_uri" in dashboard.text
+    assert "data-voice-uri" in dashboard.text
+    assert "themeInput" not in dashboard.text
+    assert "settingsSaveStatus" not in dashboard.text
+    assert "modelLoadStatus" not in dashboard.text
     assert "data-skip-session-id" not in dashboard.text
     assert ">Skip<" not in dashboard.text
     assert "Template Editor" not in dashboard.text
     assert "Existing Templates" not in dashboard.text
+
+    settings_page = client.get("/settings")
+    assert settings_page.status_code == 200
+    assert "Settings" in settings_page.text
+    assert "Runtime" in settings_page.text
+    assert "Preferred Voice" not in settings_page.text
+    assert "speechVoiceInput" not in settings_page.text
+    assert "themeInput" in settings_page.text
+    assert "Dark Green" in settings_page.text
+    assert "Dark Brown" in settings_page.text
+    assert "settingsSaveStatus" in settings_page.text
+    assert "modelLoadStatus" in settings_page.text
 
     templates_page = client.get("/templates")
     assert templates_page.status_code == 200
@@ -324,8 +392,9 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
 
     settings = client.get("/api/settings")
     assert settings.status_code == 200
-    assert settings.json()["active_model"] == "gpt-5"
-    assert settings.json()["preferred_speech_voice_uri"] == ""
+    assert settings.json()["active_model"] == "gpt-4o"
+    assert "preferred_speech_voice_uri" not in settings.json()
+    assert settings.json()["ui_theme"] == "dark"
     assert settings.json()["prompt_cache_retention"] == "in_memory"
     assert "gpt-5.4-mini" in settings.json()["available_models"]
 
@@ -336,11 +405,15 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
 
     updated_settings = client.put(
         "/api/settings",
-        json={"active_model": "gpt-5.4-mini", "preferred_speech_voice_uri": "com.apple.voice.compact.en-US.Samantha"},
+        json={
+            "active_model": "gpt-5.4-mini",
+            "ui_theme": "dark_green",
+        },
     )
     assert updated_settings.status_code == 200
     assert updated_settings.json()["active_model"] == "gpt-5.4-mini"
-    assert updated_settings.json()["preferred_speech_voice_uri"] == "com.apple.voice.compact.en-US.Samantha"
+    assert "preferred_speech_voice_uri" not in updated_settings.json()
+    assert updated_settings.json()["ui_theme"] == "dark_green"
     assert updated_settings.json()["prompt_cache_retention"] == "in_memory"
 
     templates = client.get("/api/templates")
@@ -388,10 +461,12 @@ def test_dashboard_and_basic_crud(tmp_path: Path) -> None:
             "is_active": True,
             "notification_enabled": True,
             "telegram_enabled": False,
+            "preferred_speech_voice_uri": "com.apple.voice.compact.es-ES.Monica",
         },
     )
     assert schedule.status_code == 200
     assert schedule.json()["telegram_enabled"] is False
+    assert schedule.json()["preferred_speech_voice_uri"] == "com.apple.voice.compact.es-ES.Monica"
 
     sessions = client.get("/api/sessions?limit=5")
     assert sessions.status_code == 200
@@ -421,7 +496,6 @@ def test_github_provider_routes_generation_to_github_models(tmp_path: Path, monk
             json={
                 "active_ai_provider": "github",
                 "active_model": "openai/gpt-5",
-                "preferred_speech_voice_uri": "",
             },
         )
         assert settings_response.status_code == 200
@@ -492,6 +566,153 @@ def test_acknowledge_session_endpoint_updates_session_and_schedule(tmp_path: Pat
         assert payload["schedule"]["awaiting_acknowledgement"] is False
         assert payload["schedule"]["pending_acknowledgement_count"] == 0
         assert payload["schedule"]["next_run_at"] is not None
+
+
+def test_session_listing_keeps_pending_acknowledgements_beyond_recent_limit(tmp_path: Path) -> None:
+    app = create_app(build_settings(tmp_path))
+    with TestClient(app) as client:
+        german_template = client.post(
+            "/api/templates",
+            json={
+                "name": "German",
+                "description": "German words",
+                "system_prompt": "You are a tutor.",
+                "user_prompt_template": "Teach {topic}",
+                "output_schema_version": "v1",
+                "is_active": True,
+                "variables": [{"name": "topic", "label": "Topic", "required": True}],
+            },
+        ).json()
+        serbian_template = client.post(
+            "/api/templates",
+            json={
+                "name": "Serbian",
+                "description": "Serbian words",
+                "system_prompt": "You are a tutor.",
+                "user_prompt_template": "Teach {topic}",
+                "output_schema_version": "v1",
+                "is_active": True,
+                "variables": [{"name": "topic", "label": "Topic", "required": True}],
+            },
+        ).json()
+        german_schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "German - new words",
+                "template_id": german_template["id"],
+                "variables": {"topic": "articles"},
+                "interval_minutes": 60,
+                "timezone": "UTC",
+                "is_active": True,
+                "notification_enabled": True,
+                "telegram_enabled": False,
+            },
+        ).json()
+        serbian_schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "Serbian",
+                "template_id": serbian_template["id"],
+                "variables": {"topic": "cases"},
+                "interval_minutes": 60,
+                "timezone": "UTC",
+                "is_active": True,
+                "notification_enabled": True,
+                "telegram_enabled": False,
+            },
+        ).json()
+
+        db = app.state.db
+        pending_german = db.create_session(
+            schedule_id=german_schedule["id"],
+            template_id=german_template["id"],
+            render_payload=build_payload("Wort"),
+            model_name="gpt-5",
+            prompt_snapshot={"schedule_name": "German - new words"},
+            status="success",
+            error_text=None,
+            generated_at=datetime(2026, 3, 20, 9, tzinfo=UTC),
+        )
+        for index in range(5):
+            session = db.create_session(
+                schedule_id=serbian_schedule["id"],
+                template_id=serbian_template["id"],
+                render_payload=build_payload(f"Rec {index}"),
+                model_name="gpt-5",
+                prompt_snapshot={"schedule_name": "Serbian"},
+                status="success",
+                error_text=None,
+                generated_at=datetime(2026, 3, 20, 10 + index, tzinfo=UTC),
+            )
+            db.acknowledge_session(session.id, acknowledged_at=datetime(2026, 3, 20, 15 + index, tzinfo=UTC))
+
+        response = client.get("/api/sessions?limit=3")
+
+        assert response.status_code == 200
+        sessions = response.json()
+        assert len(sessions) == 4
+        assert pending_german.id in {session["id"] for session in sessions}
+        assert next(session for session in sessions if session["id"] == pending_german.id)["acknowledged_at"] is None
+
+
+def test_session_listing_filters_by_schedule_id(tmp_path: Path) -> None:
+    app = create_app(build_settings(tmp_path))
+    with TestClient(app) as client:
+        template_id = client.get("/api/templates").json()[0]["id"]
+        first_schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "German",
+                "template_id": template_id,
+                "variables": {"target_language": "German", "topic": "articles", "focus_area": "words", "difficulty": "A2"},
+                "interval_minutes": 60,
+                "timezone": "UTC",
+                "is_active": True,
+                "notification_enabled": True,
+                "telegram_enabled": False,
+            },
+        ).json()
+        second_schedule = client.post(
+            "/api/schedules",
+            json={
+                "name": "Serbian",
+                "template_id": template_id,
+                "variables": {"target_language": "Serbian", "topic": "cases", "focus_area": "words", "difficulty": "A2"},
+                "interval_minutes": 60,
+                "timezone": "UTC",
+                "is_active": True,
+                "notification_enabled": True,
+                "telegram_enabled": False,
+            },
+        ).json()
+
+        db = app.state.db
+        first_session = db.create_session(
+            schedule_id=first_schedule["id"],
+            template_id=template_id,
+            render_payload=build_payload("Wort"),
+            model_name="gpt-5",
+            prompt_snapshot={"schedule_name": "German"},
+            status="success",
+            error_text=None,
+            generated_at=datetime(2026, 3, 20, 9, tzinfo=UTC),
+        )
+        db.create_session(
+            schedule_id=second_schedule["id"],
+            template_id=template_id,
+            render_payload=build_payload("Rec"),
+            model_name="gpt-5",
+            prompt_snapshot={"schedule_name": "Serbian"},
+            status="success",
+            error_text=None,
+            generated_at=datetime(2026, 3, 20, 10, tzinfo=UTC),
+        )
+
+        response = client.get(f"/api/sessions?limit=10&schedule_id={first_schedule['id']}")
+
+        assert response.status_code == 200
+        sessions = response.json()
+        assert [session["id"] for session in sessions] == [first_session.id]
 
 
 def test_run_now_endpoint_still_accepts_blocked_schedule(tmp_path: Path) -> None:
@@ -865,4 +1086,6 @@ def test_database_initialize_adds_telegram_enabled_column_with_default_false(tmp
     with database.connection() as migrated:
         columns = migrated.execute("PRAGMA table_info(schedules)").fetchall()
     assert any(row["name"] == "telegram_enabled" for row in columns)
+    assert any(row["name"] == "preferred_speech_voice_uri" for row in columns)
     assert database.get_schedule(1).telegram_enabled is False
+    assert database.get_schedule(1).preferred_speech_voice_uri == ""
